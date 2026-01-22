@@ -1,0 +1,231 @@
+# Agents Registry
+# 定義每個 agent 的適用條件
+
+agents:
+  # ============================================================
+  # Reviewers - Code Review Agents
+  # ============================================================
+  reviewers:
+    # 核心 Reviewers（所有專案）
+    core:
+      - name: security
+        file: security.md
+        description: OWASP 安全檢查
+        required: true
+
+      - name: test
+        file: test.md
+        description: 測試覆蓋率、E2E 測試
+        required: true
+
+      - name: quality
+        file: quality.md
+        description: Clean Architecture、Lint
+        required: true
+
+      - name: pm
+        file: pm.md
+        description: 驗收條件檢查
+        required: true
+
+    # Planning Review Agents
+    planning:
+      - name: architect
+        file: architect.md
+        description: 技術架構評估
+        requires: []
+
+      - name: estimator
+        file: estimator.md
+        description: 工作量評估
+        requires: []
+
+      - name: scope
+        file: scope.md
+        description: 範圍驗證
+        requires: []
+
+      - name: infra-validator
+        file: infra-validator.md
+        description: 基礎設施驗證
+        requires:
+          - tech_stack.infrastructure: exists
+
+      - name: rollback
+        file: rollback.md
+        description: Rollback 規劃
+        requires:
+          - tech_stack.infrastructure: exists
+
+    # Design Review Agents
+    design:
+      - name: prd-alignment
+        file: prd-alignment.md
+        description: PRD 對齊檢查
+        requires:
+          - tech_stack.frontend: exists
+
+      - name: ui
+        file: ui.md
+        description: UI 設計稿合規檢查
+        requires:
+          - tech_stack.frontend: exists
+
+      - name: security-scanner
+        file: security-scanner.md
+        description: 安全掃描工具
+        requires: []
+
+  # ============================================================
+  # Experts - 技術規範 Agents
+  # ============================================================
+  experts:
+    # 後端專家
+    backend:
+      - name: backend
+        file: backend.md
+        description: 後端規範（通用）
+        requires:
+          - tech_stack.backend: exists
+
+      - name: backend-go
+        file: backend-go.md
+        description: Go + GORM 規範
+        requires:
+          - tech_stack.backend.language: go
+
+      - name: backend-python
+        file: backend-python.md
+        description: Python + FastAPI 規範
+        requires:
+          - tech_stack.backend.language: python
+
+      - name: backend-node
+        file: backend-node.md
+        description: Node.js + TypeScript 規範
+        requires:
+          - tech_stack.backend.language: node
+
+    # 前端專家
+    frontend:
+      - name: frontend
+        file: frontend.md
+        description: 前端規範（通用）
+        requires:
+          - tech_stack.frontend: exists
+
+      - name: frontend-react
+        file: frontend-react.md
+        description: React + Next.js 規範
+        requires:
+          - tech_stack.frontend.framework: [next, react]
+
+      - name: frontend-vue
+        file: frontend-vue.md
+        description: Vue + Nuxt 規範
+        requires:
+          - tech_stack.frontend.framework: [vue, nuxt]
+
+    # 資料庫專家
+    database:
+      - name: database
+        file: database.md
+        description: 資料庫規範（通用）
+        requires:
+          - tech_stack.database: exists
+
+    # 基礎設施專家
+    infrastructure:
+      - name: cicd
+        file: cicd.md
+        description: CI/CD 規範
+        requires:
+          - tech_stack.infrastructure.ci_cd: exists
+
+      - name: terraform
+        file: terraform.md
+        description: Terraform + GCP 規範
+        requires:
+          - tech_stack.infrastructure.iac: terraform
+
+    # 設計專家
+    design:
+      - name: ux-ui-designer
+        file: ux-ui-designer.md
+        description: UX/UI 設計流程
+        requires:
+          - tech_stack.frontend: exists
+
+      - name: design-system-architect
+        file: design-system-architect.md
+        description: 設計系統架構
+        requires:
+          - design.enabled: true
+
+      - name: accessibility-expert
+        file: accessibility-expert.md
+        description: WCAG 無障礙設計
+        requires:
+          - tech_stack.frontend: exists
+
+  # ============================================================
+  # Workers - 執行型 Agents
+  # ============================================================
+  workers:
+    core:
+      - name: engineer
+        file: engineer.md
+        description: 通用開發工程師
+        required: true
+
+    specialized:
+      - name: engineer-backend
+        file: engineer-backend.md
+        description: 後端開發工程師
+        requires:
+          - tech_stack.backend: exists
+
+      - name: engineer-frontend
+        file: engineer-frontend.md
+        description: 前端開發工程師
+        requires:
+          - tech_stack.frontend: exists
+
+      - name: devops-troubleshooter
+        file: devops-troubleshooter.md
+        description: 生產環境問題排查
+        requires:
+          - tech_stack.infrastructure: exists
+
+      - name: test-automator
+        file: test-automator.md
+        description: AI 自動測試生成
+        requires: []
+
+  # ============================================================
+  # Reference - 參考 Agents
+  # ============================================================
+  reference:
+    - name: golang-pro
+      file: golang-pro.md
+      description: Go 專業實踐參考
+      requires:
+        - tech_stack.backend.language: go
+
+    - name: frontend-developer
+      file: frontend-developer.md
+      description: 前端參考實現
+      requires:
+        - tech_stack.frontend: exists
+
+    - name: database-architect
+      file: database-architect.md
+      description: 資料庫架構參考
+      requires:
+        - tech_stack.database: exists
+
+    - name: cloud-architect
+      file: cloud-architect.md
+      description: 雲架構參考
+      requires:
+        - tech_stack.infrastructure.cloud: exists

@@ -1,0 +1,411 @@
+# project.yaml Schema Definition
+# 此檔案定義 .claude/project.yaml 的完整結構
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "Claude Project Configuration"
+description: "Claude Code 專案設定檔 schema"
+type: object
+
+required:
+  - project
+  - tech_stack
+
+properties:
+  # ============================================================
+  # 專案基本資訊
+  # ============================================================
+  project:
+    type: object
+    description: "專案基本資訊"
+    required:
+      - name
+      - type
+    properties:
+      name:
+        type: string
+        description: "專案名稱"
+        examples: ["my-project", "insighthub"]
+
+      type:
+        type: string
+        description: "專案類型"
+        enum:
+          - web-app        # 網頁應用程式（前後端）
+          - frontend-only  # 純前端應用
+          - backend-only   # 純後端服務
+          - cli            # 命令列工具
+          - library        # 函式庫 / SDK
+          - microservice   # 微服務
+          - monorepo       # 多專案 Monorepo
+
+      description:
+        type: string
+        description: "專案描述"
+
+      repository:
+        type: string
+        description: "Git 儲存庫 URL"
+        format: uri
+
+  # ============================================================
+  # 技術棧設定
+  # ============================================================
+  tech_stack:
+    type: object
+    description: "專案使用的技術棧"
+    properties:
+      # ----------------------
+      # 後端設定
+      # ----------------------
+      backend:
+        type: object
+        description: "後端技術設定"
+        properties:
+          language:
+            type: string
+            description: "程式語言"
+            enum: [go, python, node, java, rust, csharp]
+
+          version:
+            type: string
+            description: "語言版本"
+            examples: ["1.24", "3.12", "22.x"]
+
+          framework:
+            type: string
+            description: "後端框架"
+            examples: [gin, echo, fiber, fastapi, django, express, nestjs, spring]
+
+          framework_version:
+            type: string
+            description: "框架版本"
+
+          orm:
+            type: string
+            description: "ORM / 資料存取層"
+            examples: [gorm, sqlalchemy, prisma, typeorm, sequelize]
+
+          architecture:
+            type: string
+            description: "架構模式"
+            enum: [clean, hexagonal, layered, microservice]
+            default: clean
+
+      # ----------------------
+      # 前端設定
+      # ----------------------
+      frontend:
+        type: object
+        description: "前端技術設定"
+        properties:
+          language:
+            type: string
+            description: "程式語言"
+            enum: [typescript, javascript]
+            default: typescript
+
+          version:
+            type: string
+            description: "語言版本"
+            examples: ["5.x", "ES2024"]
+
+          framework:
+            type: string
+            description: "前端框架"
+            examples: [next, react, vue, angular, svelte, nuxt]
+
+          framework_version:
+            type: string
+            description: "框架版本"
+            examples: ["16.x", "19.x", "3.x"]
+
+          ui_framework:
+            type: object
+            description: "UI 框架設定（可分區域）"
+            properties:
+              default:
+                type: string
+                description: "預設 UI 框架"
+                examples: [mui, antd, shadcn, tailwind, chakra]
+              admin:
+                type: string
+                description: "後台使用的 UI 框架"
+                examples: [antd, mui-admin]
+
+          styling:
+            type: string
+            description: "樣式方案"
+            enum: [css-modules, tailwind, styled-components, emotion, sass]
+            default: css-modules
+
+          package_manager:
+            type: string
+            description: "套件管理器"
+            enum: [npm, pnpm, yarn, bun]
+            default: pnpm
+
+      # ----------------------
+      # 資料庫設定
+      # ----------------------
+      database:
+        type: object
+        description: "資料庫設定"
+        properties:
+          type:
+            type: string
+            description: "資料庫類型"
+            enum: [postgresql, mysql, mongodb, sqlite, redis]
+
+          version:
+            type: string
+            description: "資料庫版本"
+            examples: ["16", "8.0", "7.x"]
+
+          migration:
+            type: string
+            description: "Migration 工具"
+            examples: [gorm-auto, golang-migrate, prisma, flyway]
+
+      # ----------------------
+      # 基礎設施設定
+      # ----------------------
+      infrastructure:
+        type: object
+        description: "基礎設施設定"
+        properties:
+          cloud:
+            type: string
+            description: "雲端平台"
+            enum: [gcp, aws, azure, vercel, none]
+
+          compute:
+            type: string
+            description: "運算服務"
+            examples: [cloud-run, app-engine, ecs, lambda, ec2]
+
+          iac:
+            type: string
+            description: "IaC 工具"
+            enum: [terraform, pulumi, cdk, cloudformation, none]
+
+          ci_cd:
+            type: string
+            description: "CI/CD 平台"
+            enum: [github-actions, gitlab-ci, circleci, jenkins]
+            default: github-actions
+
+  # ============================================================
+  # 團隊規範
+  # ============================================================
+  team:
+    type: object
+    description: "團隊開發規範"
+    properties:
+      # ----------------------
+      # 測試規範
+      # ----------------------
+      test_coverage:
+        type: integer
+        description: "最低測試覆蓋率 (%)"
+        minimum: 0
+        maximum: 100
+        default: 80
+
+      e2e_required:
+        type: boolean
+        description: "是否強制 E2E 測試"
+        default: true
+
+      e2e_framework:
+        type: string
+        description: "E2E 測試框架"
+        examples: [playwright, cypress, selenium]
+        default: playwright
+
+      # ----------------------
+      # 程式碼風格
+      # ----------------------
+      code_style:
+        type: string
+        description: "程式碼風格指南"
+        examples: [google, airbnb, standard, custom]
+
+      linter:
+        type: object
+        description: "Linter 設定"
+        properties:
+          backend:
+            type: string
+            examples: [golangci-lint, pylint, eslint]
+          frontend:
+            type: string
+            examples: [eslint, biome]
+
+      # ----------------------
+      # Git 工作流程
+      # ----------------------
+      git_workflow:
+        type: string
+        description: "Git 分支策略"
+        enum: [github-flow, gitflow, trunk-based]
+        default: github-flow
+
+      commit_convention:
+        type: string
+        description: "Commit 訊息規範"
+        enum: [conventional, angular, custom]
+        default: conventional
+
+      # ----------------------
+      # Review 設定
+      # ----------------------
+      review_required:
+        type: boolean
+        description: "是否需要 Code Review"
+        default: true
+
+      review_agents:
+        type: array
+        description: "啟用的 Review Agents"
+        items:
+          type: string
+          enum: [security, test, quality, pm]
+        default: [security, test, quality, pm]
+
+  # ============================================================
+  # 設計系統（可選）
+  # ============================================================
+  design:
+    type: object
+    description: "設計系統設定"
+    properties:
+      enabled:
+        type: boolean
+        description: "是否啟用設計系統"
+        default: false
+
+      figma:
+        type: object
+        description: "Figma 整合設定"
+        properties:
+          enabled:
+            type: boolean
+            default: false
+          design_system_url:
+            type: string
+            description: "Design System 的 Figma URL"
+            format: uri
+
+      tokens_path:
+        type: string
+        description: "Design Tokens 存放路徑"
+        default: "docs/designs/tokens/"
+
+      components_path:
+        type: string
+        description: "元件設計稿存放路徑"
+        default: "docs/designs/components/"
+
+  # ============================================================
+  # 文件路徑設定
+  # ============================================================
+  paths:
+    type: object
+    description: "專案路徑設定"
+    properties:
+      prd:
+        type: string
+        description: "PRD 檔案路徑"
+        default: "docs/PRD.md"
+
+      tickets:
+        type: string
+        description: "Tickets 檔案路徑"
+        default: "docs/TICKETS.md"
+
+      designs:
+        type: string
+        description: "設計稿目錄"
+        default: "docs/designs/"
+
+      backend:
+        type: string
+        description: "後端程式碼目錄"
+        default: "backend/"
+
+      frontend:
+        type: string
+        description: "前端程式碼目錄"
+        default: "frontend/"
+
+  # ============================================================
+  # 國際化設定
+  # ============================================================
+  i18n:
+    type: object
+    description: "國際化設定"
+    properties:
+      enabled:
+        type: boolean
+        default: false
+
+      default_locale:
+        type: string
+        description: "預設語言"
+        default: "zh-TW"
+
+      supported_locales:
+        type: array
+        description: "支援的語言"
+        items:
+          type: string
+        default: ["zh-TW", "en"]
+
+# ============================================================
+# 預設值範例
+# ============================================================
+examples:
+  - project:
+      name: "my-web-app"
+      type: "web-app"
+      description: "My awesome web application"
+    tech_stack:
+      backend:
+        language: "go"
+        version: "1.24"
+        framework: "gin"
+        orm: "gorm"
+        architecture: "clean"
+      frontend:
+        language: "typescript"
+        version: "5.x"
+        framework: "next"
+        framework_version: "16.x"
+        ui_framework:
+          default: "mui"
+        styling: "css-modules"
+        package_manager: "pnpm"
+      database:
+        type: "postgresql"
+        version: "16"
+      infrastructure:
+        cloud: "gcp"
+        compute: "cloud-run"
+        iac: "terraform"
+        ci_cd: "github-actions"
+    team:
+      test_coverage: 80
+      e2e_required: true
+      e2e_framework: "playwright"
+      code_style: "google"
+      git_workflow: "github-flow"
+      commit_convention: "conventional"
+      review_required: true
+      review_agents: ["security", "test", "quality", "pm"]
+    design:
+      enabled: true
+      figma:
+        enabled: false
+    paths:
+      prd: "docs/PRD.md"
+      tickets: "docs/TICKETS.md"

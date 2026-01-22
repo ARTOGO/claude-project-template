@@ -1,0 +1,106 @@
+# .claude/project.yaml - 專案設定範例
+# 此檔案由 /project:init 自動生成，可手動調整
+
+# ============================================================
+# 專案基本資訊
+# ============================================================
+project:
+  name: "my-web-app"
+  type: "web-app"  # web-app | frontend-only | backend-only | cli | library | microservice | monorepo
+  description: "我的網頁應用程式"
+  repository: "https://github.com/myorg/my-web-app"
+
+# ============================================================
+# 技術棧設定
+# ============================================================
+tech_stack:
+  # 後端設定
+  backend:
+    language: "go"
+    version: "1.24"
+    framework: "gin"
+    orm: "gorm"
+    architecture: "clean"  # clean | hexagonal | layered | microservice
+
+  # 前端設定
+  frontend:
+    language: "typescript"
+    version: "5.x"
+    framework: "next"
+    framework_version: "16.x"
+    ui_framework:
+      default: "mui"       # 前台使用 MUI
+      admin: "antd"        # 後台使用 Ant Design
+    styling: "css-modules" # css-modules | tailwind | styled-components
+    package_manager: "pnpm"
+
+  # 資料庫設定
+  database:
+    type: "postgresql"
+    version: "16"
+    migration: "gorm-auto"
+
+  # 基礎設施設定
+  infrastructure:
+    cloud: "gcp"
+    compute: "cloud-run"
+    iac: "terraform"
+    ci_cd: "github-actions"
+
+# ============================================================
+# 團隊規範
+# ============================================================
+team:
+  # 測試規範
+  test_coverage: 80        # 最低測試覆蓋率 (%)
+  e2e_required: true       # 強制 E2E 測試
+  e2e_framework: "playwright"
+
+  # 程式碼風格
+  code_style: "google"
+  linter:
+    backend: "golangci-lint"
+    frontend: "eslint"
+
+  # Git 工作流程
+  git_workflow: "github-flow"  # github-flow | gitflow | trunk-based
+  commit_convention: "conventional"
+
+  # Review 設定
+  review_required: true
+  review_agents:
+    - security   # 安全性審查（最高優先）
+    - test       # 測試覆蓋審查
+    - quality    # 程式碼品質審查
+    - pm         # 驗收條件審查
+
+# ============================================================
+# 設計系統（可選）
+# ============================================================
+design:
+  enabled: true
+  figma:
+    enabled: false
+    # design_system_url: "https://figma.com/design/xxx/DesignSystem"
+  tokens_path: "docs/designs/tokens/"
+  components_path: "docs/designs/components/"
+
+# ============================================================
+# 文件路徑設定
+# ============================================================
+paths:
+  prd: "docs/PRD.md"
+  tickets: "docs/TICKETS.md"
+  designs: "docs/designs/"
+  backend: "backend/"
+  frontend: "frontend/"
+
+# ============================================================
+# 國際化設定
+# ============================================================
+i18n:
+  enabled: true
+  default_locale: "zh-TW"
+  supported_locales:
+    - "zh-TW"
+    - "en"

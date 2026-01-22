@@ -1,0 +1,26 @@
+# Source control
+.git/
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# Test
+coverage/
+*.test.js
+
+# Development
+.eslintrc*
+.prettierrc*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build artifacts
+*.tgz

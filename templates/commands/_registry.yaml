@@ -1,0 +1,143 @@
+# Commands Registry
+# 定義每個 command 的適用條件
+
+commands:
+  # ============================================================
+  # 核心命令（所有專案都需要）
+  # ============================================================
+  core:
+    - name: init
+      file: init.md
+      description: 初始化專案設定
+      required: true
+
+    - name: add-feature
+      file: add-feature.md
+      description: 新增功能模組（frontend/backend/database/infrastructure）
+      required: true
+
+    - name: plan
+      file: plan.md
+      description: 需求規劃，產出 Tickets
+      required: true
+
+    - name: start-dev
+      file: start-dev.md
+      description: 多 Agent 協作開發
+      required: true
+
+    - name: done
+      file: done.md
+      description: 完成開發，執行 Review
+      required: true
+
+    - name: review
+      file: review.md
+      description: 單獨執行 Code Review
+      required: true
+
+  # ============================================================
+  # 開發命令
+  # ============================================================
+  development:
+    - name: tdd
+      file: tdd.md
+      description: TDD 教學模式開發
+      requires: []  # 所有專案
+
+    - name: fix
+      file: fix.md
+      description: 快速修復 Bug
+      requires: []
+
+    - name: refactor
+      file: refactor.md
+      description: 程式碼重構
+      requires: []
+
+    - name: debug
+      file: debug.md
+      description: 除錯工作流程
+      requires: []
+
+  # ============================================================
+  # 測試命令
+  # ============================================================
+  testing:
+    - name: test
+      file: test.md
+      description: 執行單元測試
+      requires: []
+
+    - name: test-e2e
+      file: test-e2e.md
+      description: 執行 E2E 測試
+      requires:
+        - team.e2e_required: true
+        # 或有前端
+        - tech_stack.frontend: exists
+
+  # ============================================================
+  # 設計命令（需要前端）
+  # ============================================================
+  design:
+    - name: design
+      file: design.md
+      description: UI 元件設計稿生成
+      requires:
+        - tech_stack.frontend: exists
+
+    - name: design-system
+      file: design-system.md
+      description: 完整設計系統規劃
+      requires:
+        - tech_stack.frontend: exists
+
+    - name: sync-design-system
+      file: sync-design-system.md
+      description: 同步 Figma 設計系統
+      requires:
+        - design.figma.enabled: true
+
+    - name: review-design
+      file: review-design.md
+      description: 設計稿審查
+      requires:
+        - tech_stack.frontend: exists
+
+    - name: ux
+      file: ux.md
+      description: UX 研究工具
+      requires:
+        - tech_stack.frontend: exists
+
+    - name: ui
+      file: ui.md
+      description: UI 開發支援工具
+      requires:
+        - tech_stack.frontend: exists
+
+  # ============================================================
+  # 部署命令（需要 infrastructure 設定）
+  # ============================================================
+  deployment:
+    - name: deploy
+      file: deploy.md
+      description: 部署到 dev/staging/prod
+      requires:
+        - tech_stack.infrastructure: exists
+
+    - name: db-migrate
+      file: db-migrate.md
+      description: 資料庫遷移管理
+      requires:
+        - tech_stack.database: exists
+
+  # ============================================================
+  # 文件命令
+  # ============================================================
+  documentation:
+    - name: docs
+      file: docs.md
+      description: 文件生成與更新
+      requires: []
