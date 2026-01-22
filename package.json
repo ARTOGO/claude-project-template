@@ -1,6 +1,6 @@
 {
   "name": "@artogo/claude-project-template",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reusable Claude Code project template with Multi-Agent Review, TDD, and Clean Architecture",
   "main": "bin/cli.js",
   "bin": {
