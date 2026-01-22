@@ -125,7 +125,36 @@ program
 // ============================================================
 
 async function promptForConfig() {
-  // Phase 1: 專案類型
+  // Step 0: 初始化方式選擇
+  const { initMethod } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'initMethod',
+      message: '如何初始化專案？',
+      choices: [
+        { name: 'A. 讀取需求文件（推薦）- 從 PRD/README 等文件讀取需求和 Tech Stack', value: 'read-doc' },
+        { name: 'B. 既有專案 - 已有程式碼，自動分析後加入 Claude Code 設定', value: 'existing' },
+        { name: 'C. 全新專案 - 從零開始，透過問答完整規劃', value: 'new' },
+        { name: 'D. 其他 - 自行描述專案情況', value: 'other' }
+      ]
+    }
+  ])
+
+  // 根據初始化方式進入不同流程
+  switch (initMethod) {
+    case 'read-doc':
+      return await promptFromDocument()
+    case 'existing':
+      return await promptFromExistingProject()
+    case 'other':
+      return await promptFromCustomDescription()
+    case 'new':
+    default:
+      // 繼續原有的全新專案流程
+      break
+  }
+
+  // Phase 1: 專案類型（全新專案流程）
   const { projectType } = await inquirer.prompt([
     {
       type: 'list',
@@ -138,18 +167,30 @@ async function promptForConfig() {
         { name: 'CLI 工具', value: 'cli' },
         { name: 'Library / SDK', value: 'library' },
         { name: 'Microservice', value: 'microservice' },
-        { name: 'Monorepo', value: 'monorepo' }
+        { name: 'Monorepo', value: 'monorepo' },
+        { name: '其他（自行輸入）', value: 'other' }
       ]
     }
   ])
+
+  // 處理「其他」選項
+  let finalProjectType = projectType
+  if (projectType === 'other') {
+    const { customType } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customType',
+      message: '請輸入專案類型：'
+    }])
+    finalProjectType = customType
+  }
 
   // Phase 2: 技術棧
   let backendConfig = null
   let frontendConfig = null
   let databaseConfig = null
 
-  const hasBackend = ['web-app', 'backend-only', 'microservice', 'cli', 'monorepo'].includes(projectType)
-  const hasFrontend = ['web-app', 'frontend-only', 'monorepo'].includes(projectType)
+  const hasBackend = ['web-app', 'backend-only', 'microservice', 'cli', 'monorepo'].includes(finalProjectType)
+  const hasFrontend = ['web-app', 'frontend-only', 'monorepo'].includes(finalProjectType)
 
   if (hasBackend) {
     backendConfig = await promptBackendConfig()
@@ -226,7 +267,637 @@ async function promptForConfig() {
   return {
     project: {
       name: projectName,
+      type: finalProjectType
+    },
+    tech_stack: {
+      backend: backendConfig,
+      frontend: frontendConfig,
+      database: databaseConfig,
+      infrastructure: infrastructureConfig
+    },
+    team: teamConfig,
+    design: designConfig
+  }
+}
+
+// ============================================================
+// 讀取需求文件流程
+// ============================================================
+async function promptFromDocument() {
+  console.log(chalk.cyan('\n📄 讀取需求文件流程\n'))
+
+  // Step A1: 詢問文件來源
+  const docChoices = [{ name: 'README.md', value: 'README.md' }]
+
+  // 檢查是否存在 docs/PRD.md
+  if (await fs.pathExists(path.join(process.cwd(), 'docs', 'PRD.md'))) {
+    docChoices.unshift({ name: 'docs/PRD.md（發現此檔案）', value: 'docs/PRD.md' })
+  }
+
+  docChoices.push(
+    { name: '其他檔案路徑（自行輸入）', value: 'custom-path' },
+    { name: '手動輸入需求內容', value: 'manual-input' }
+  )
+
+  const { docSource } = await inquirer.prompt([{
+    type: 'list',
+    name: 'docSource',
+    message: '請選擇需求文件來源：',
+    choices: docChoices
+  }])
+
+  let docContent = ''
+  let docPath = ''
+
+  if (docSource === 'custom-path') {
+    const { customPath } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customPath',
+      message: '請輸入檔案路徑：'
+    }])
+    docPath = customPath
+    if (await fs.pathExists(customPath)) {
+      docContent = await fs.readFile(customPath, 'utf8')
+    } else {
+      console.log(chalk.yellow(`⚠️ 找不到檔案: ${customPath}，將進入手動輸入模式`))
+    }
+  } else if (docSource === 'manual-input') {
+    const { manualContent } = await inquirer.prompt([{
+      type: 'editor',
+      name: 'manualContent',
+      message: '請輸入需求內容（將開啟編輯器）：'
+    }])
+    docContent = manualContent
+  } else {
+    docPath = docSource
+    if (await fs.pathExists(docSource)) {
+      docContent = await fs.readFile(docSource, 'utf8')
+    }
+  }
+
+  // Step A2: 解析文件內容
+  const detected = parseDocumentForTechStack(docContent)
+
+  // Step A3: 顯示解析結果
+  console.log(chalk.cyan('\n## 需求文件分析結果\n'))
+
+  if (docPath) {
+    console.log(`文件: ${docPath}\n`)
+  }
+
+  if (Object.keys(detected).length > 0) {
+    console.log(chalk.green('✅ 已識別的配置：\n'))
+    for (const [key, value] of Object.entries(detected)) {
+      console.log(`  • ${key}: ${value}`)
+    }
+  }
+
+  // 確認識別是否正確
+  const { confirmDetected } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'confirmDetected',
+    message: '以上識別是否正確？',
+    default: true
+  }])
+
+  if (!confirmDetected) {
+    console.log(chalk.yellow('\n將進入完整問答流程...\n'))
+    return await promptFullConfig()
+  }
+
+  // Step A4: 只詢問未識別的項目
+  return await promptMissingConfig(detected)
+}
+
+// 解析文件中的技術棧
+function parseDocumentForTechStack(content) {
+  const detected = {}
+  const contentLower = content.toLowerCase()
+
+  // 後端語言
+  if (/\b(golang|go\s*1\.\d+|go\.mod)\b/i.test(content)) {
+    detected.backendLanguage = 'go'
+  } else if (/\b(python|fastapi|django|flask)\b/i.test(content)) {
+    detected.backendLanguage = 'python'
+  } else if (/\b(node\.?js|express|nestjs|typescript\s+backend)\b/i.test(content)) {
+    detected.backendLanguage = 'node'
+  }
+
+  // 後端框架
+  if (/\b(gin|gin-gonic)\b/i.test(content)) {
+    detected.backendFramework = 'gin'
+  } else if (/\bfastapi\b/i.test(content)) {
+    detected.backendFramework = 'fastapi'
+  } else if (/\bexpress\b/i.test(content)) {
+    detected.backendFramework = 'express'
+  } else if (/\bnestjs\b/i.test(content)) {
+    detected.backendFramework = 'nestjs'
+  }
+
+  // 前端框架
+  if (/\b(next\.?js|next\s*1[456])\b/i.test(content)) {
+    detected.frontendFramework = 'next'
+  } else if (/\breact\b/i.test(content) && !/next/i.test(content)) {
+    detected.frontendFramework = 'react'
+  } else if (/\b(vue|nuxt)\b/i.test(content)) {
+    detected.frontendFramework = 'vue'
+  }
+
+  // 資料庫
+  if (/\b(postgresql|postgres|pg)\b/i.test(content)) {
+    detected.database = 'postgresql'
+  } else if (/\bmysql\b/i.test(content)) {
+    detected.database = 'mysql'
+  } else if (/\bmongodb\b/i.test(content)) {
+    detected.database = 'mongodb'
+  }
+
+  // ORM
+  if (/\bgorm\b/i.test(content)) {
+    detected.orm = 'gorm'
+  } else if (/\bprisma\b/i.test(content)) {
+    detected.orm = 'prisma'
+  } else if (/\btypeorm\b/i.test(content)) {
+    detected.orm = 'typeorm'
+  }
+
+  // UI 框架
+  if (/\b(mui|material[\s-]?ui)\b/i.test(content)) {
+    detected.uiFramework = 'mui'
+  } else if (/\b(ant[\s-]?design|antd)\b/i.test(content)) {
+    detected.uiFramework = 'antd'
+  } else if (/\bshadcn\b/i.test(content)) {
+    detected.uiFramework = 'shadcn'
+  }
+
+  // 雲端平台
+  if (/\b(gcp|google\s*cloud|cloud\s*run)\b/i.test(content)) {
+    detected.cloud = 'gcp'
+  } else if (/\b(aws|amazon|ecs|lambda)\b/i.test(content)) {
+    detected.cloud = 'aws'
+  }
+
+  // CI/CD
+  if (/\b(github\s*actions|\.github\/workflows)\b/i.test(content)) {
+    detected.ciCd = 'github-actions'
+  }
+
+  return detected
+}
+
+// 根據已識別的配置，只詢問缺失項目
+async function promptMissingConfig(detected) {
+  let backendConfig = null
+  let frontendConfig = null
+  let databaseConfig = null
+  let infrastructureConfig = null
+
+  // 判斷專案類型
+  const hasBackendDetected = detected.backendLanguage || detected.backendFramework
+  const hasFrontendDetected = detected.frontendFramework
+  const hasDatabaseDetected = detected.database
+
+  // 後端配置
+  if (hasBackendDetected) {
+    backendConfig = {
+      language: detected.backendLanguage || 'go',
+      framework: detected.backendFramework || 'gin',
+      orm: detected.orm || 'gorm',
+      architecture: 'clean'
+    }
+
+    // 詢問未識別的後端項目
+    if (!detected.orm) {
+      const ormChoices = getOrmChoices(backendConfig.language)
+      ormChoices.push({ name: '其他（自行輸入）', value: 'other' })
+      const { orm } = await inquirer.prompt([{
+        type: 'list',
+        name: 'orm',
+        message: '使用什麼 ORM？',
+        choices: ormChoices
+      }])
+      if (orm === 'other') {
+        const { customOrm } = await inquirer.prompt([{
+          type: 'input',
+          name: 'customOrm',
+          message: '請輸入 ORM：'
+        }])
+        backendConfig.orm = customOrm
+      } else {
+        backendConfig.orm = orm
+      }
+    }
+  }
+
+  // 前端配置
+  if (hasFrontendDetected) {
+    frontendConfig = {
+      language: 'typescript',
+      framework: detected.frontendFramework,
+      ui_framework: { default: detected.uiFramework || 'mui' },
+      styling: 'css-modules',
+      package_manager: 'pnpm'
+    }
+
+    // 詢問未識別的前端項目
+    if (!detected.uiFramework) {
+      const { uiFramework } = await inquirer.prompt([{
+        type: 'list',
+        name: 'uiFramework',
+        message: 'UI 框架？',
+        choices: [
+          { name: 'MUI (Material UI)', value: 'mui' },
+          { name: 'Ant Design', value: 'antd' },
+          { name: 'shadcn/ui', value: 'shadcn' },
+          { name: 'Tailwind (無元件庫)', value: 'tailwind' },
+          { name: 'Chakra UI', value: 'chakra' },
+          { name: '其他（自行輸入）', value: 'other' }
+        ]
+      }])
+      if (uiFramework === 'other') {
+        const { customUi } = await inquirer.prompt([{
+          type: 'input',
+          name: 'customUi',
+          message: '請輸入 UI 框架：'
+        }])
+        frontendConfig.ui_framework = { default: customUi }
+      } else {
+        frontendConfig.ui_framework = { default: uiFramework }
+      }
+    }
+
+    // 套件管理器
+    const { packageManager } = await inquirer.prompt([{
+      type: 'list',
+      name: 'packageManager',
+      message: '套件管理器？',
+      choices: [
+        { name: 'pnpm（推薦）', value: 'pnpm' },
+        { name: 'npm', value: 'npm' },
+        { name: 'yarn', value: 'yarn' },
+        { name: 'bun', value: 'bun' },
+        { name: '其他（自行輸入）', value: 'other' }
+      ]
+    }])
+    if (packageManager === 'other') {
+      const { customPm } = await inquirer.prompt([{
+        type: 'input',
+        name: 'customPm',
+        message: '請輸入套件管理器：'
+      }])
+      frontendConfig.package_manager = customPm
+    } else {
+      frontendConfig.package_manager = packageManager
+    }
+  }
+
+  // 資料庫配置
+  if (hasDatabaseDetected) {
+    databaseConfig = {
+      type: detected.database,
+      version: '16'
+    }
+  } else if (hasBackendDetected) {
+    const { hasDatabase } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'hasDatabase',
+      message: '專案是否需要資料庫？',
+      default: true
+    }])
+    if (hasDatabase) {
+      databaseConfig = await promptDatabaseConfig()
+    }
+  }
+
+  // 基礎設施配置
+  if (detected.cloud || detected.ciCd) {
+    infrastructureConfig = {
+      cloud: detected.cloud || null,
+      ci_cd: detected.ciCd || null,
+      iac: null
+    }
+  }
+
+  // 團隊規範
+  const teamConfig = await promptTeamConfig()
+
+  // 設計系統
+  let designConfig = { enabled: false }
+  if (hasFrontendDetected) {
+    const { enableDesign } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'enableDesign',
+      message: '是否啟用設計系統？',
+      default: true
+    }])
+    designConfig = { enabled: enableDesign }
+  }
+
+  // 專案名稱
+  const { projectName } = await inquirer.prompt([{
+    type: 'input',
+    name: 'projectName',
+    message: '專案名稱：',
+    default: path.basename(process.cwd())
+  }])
+
+  // 判斷專案類型
+  let projectType = 'web-app'
+  if (hasBackendDetected && hasFrontendDetected) {
+    projectType = 'web-app'
+  } else if (hasBackendDetected && !hasFrontendDetected) {
+    projectType = 'backend-only'
+  } else if (hasFrontendDetected && !hasBackendDetected) {
+    projectType = 'frontend-only'
+  }
+
+  return {
+    project: {
+      name: projectName,
       type: projectType
+    },
+    tech_stack: {
+      backend: backendConfig,
+      frontend: frontendConfig,
+      database: databaseConfig,
+      infrastructure: infrastructureConfig
+    },
+    team: teamConfig,
+    design: designConfig
+  }
+}
+
+// 取得 ORM 選項
+function getOrmChoices(language) {
+  const ormChoices = {
+    go: ['gorm', 'sqlx', 'ent'],
+    python: ['sqlalchemy', 'django-orm', 'tortoise'],
+    node: ['prisma', 'typeorm', 'drizzle'],
+    java: ['jpa', 'mybatis'],
+    rust: ['diesel', 'sea-orm']
+  }
+  return (ormChoices[language] || ['other']).map(o => ({ name: o, value: o }))
+}
+
+// ============================================================
+// 既有專案流程
+// ============================================================
+async function promptFromExistingProject() {
+  console.log(chalk.cyan('\n🔍 分析既有專案中...\n'))
+
+  const detected = await analyzeExistingProject()
+
+  // 顯示推斷結果
+  console.log(chalk.green('根據程式碼分析，您的專案使用：\n'))
+
+  if (detected.backendLanguage) {
+    console.log(`  • 後端: ${detected.backendLanguage}${detected.backendFramework ? ' + ' + detected.backendFramework : ''}`)
+  }
+  if (detected.frontendFramework) {
+    console.log(`  • 前端: ${detected.frontendFramework}`)
+  }
+  if (detected.database) {
+    console.log(`  • 資料庫: ${detected.database}`)
+  }
+  if (detected.packageManager) {
+    console.log(`  • 套件管理器: ${detected.packageManager}`)
+  }
+
+  console.log('')
+
+  const { confirmDetected } = await inquirer.prompt([{
+    type: 'list',
+    name: 'confirmDetected',
+    message: '以上推斷是否正確？',
+    choices: [
+      { name: '正確，繼續', value: 'correct' },
+      { name: '需要修正', value: 'modify' },
+      { name: '其他（自行說明）', value: 'other' }
+    ]
+  }])
+
+  if (confirmDetected === 'other') {
+    return await promptFromCustomDescription()
+  }
+
+  if (confirmDetected === 'modify') {
+    console.log(chalk.yellow('\n將進入完整問答流程...\n'))
+    return await promptFullConfig()
+  }
+
+  return await promptMissingConfig(detected)
+}
+
+// 分析既有專案
+async function analyzeExistingProject() {
+  const detected = {}
+  const cwd = process.cwd()
+
+  // 檢查 go.mod
+  if (await fs.pathExists(path.join(cwd, 'go.mod'))) {
+    detected.backendLanguage = 'go'
+    const goMod = await fs.readFile(path.join(cwd, 'go.mod'), 'utf8')
+    if (/gin-gonic\/gin/i.test(goMod)) detected.backendFramework = 'gin'
+    if (/gorm\.io\/gorm/i.test(goMod)) detected.orm = 'gorm'
+  }
+
+  // 檢查 package.json
+  if (await fs.pathExists(path.join(cwd, 'package.json'))) {
+    const pkg = JSON.parse(await fs.readFile(path.join(cwd, 'package.json'), 'utf8'))
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+
+    if (deps.next) detected.frontendFramework = 'next'
+    else if (deps.react && !deps.next) detected.frontendFramework = 'react'
+    else if (deps.vue) detected.frontendFramework = 'vue'
+
+    if (deps['@mui/material']) detected.uiFramework = 'mui'
+    else if (deps.antd) detected.uiFramework = 'antd'
+
+    if (deps.prisma) detected.orm = 'prisma'
+    if (deps.express) detected.backendFramework = 'express'
+  }
+
+  // 檢查前端 package.json
+  if (await fs.pathExists(path.join(cwd, 'frontend', 'package.json'))) {
+    const pkg = JSON.parse(await fs.readFile(path.join(cwd, 'frontend', 'package.json'), 'utf8'))
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+
+    if (deps.next) detected.frontendFramework = 'next'
+    if (deps['@mui/material']) detected.uiFramework = 'mui'
+    else if (deps.antd) detected.uiFramework = 'antd'
+  }
+
+  // 檢查套件管理器
+  if (await fs.pathExists(path.join(cwd, 'pnpm-lock.yaml'))) {
+    detected.packageManager = 'pnpm'
+  } else if (await fs.pathExists(path.join(cwd, 'yarn.lock'))) {
+    detected.packageManager = 'yarn'
+  } else if (await fs.pathExists(path.join(cwd, 'package-lock.json'))) {
+    detected.packageManager = 'npm'
+  }
+
+  // 檢查前端目錄的套件管理器
+  if (await fs.pathExists(path.join(cwd, 'frontend', 'pnpm-lock.yaml'))) {
+    detected.packageManager = 'pnpm'
+  }
+
+  return detected
+}
+
+// ============================================================
+// 自訂描述流程
+// ============================================================
+async function promptFromCustomDescription() {
+  console.log(chalk.cyan('\n📝 自訂描述流程\n'))
+
+  const { description } = await inquirer.prompt([{
+    type: 'editor',
+    name: 'description',
+    message: '請描述您的專案情況（將開啟編輯器）：'
+  }])
+
+  // 嘗試從描述中解析
+  const detected = parseDocumentForTechStack(description)
+
+  if (Object.keys(detected).length > 0) {
+    console.log(chalk.cyan('\n從您的描述中識別到：\n'))
+    for (const [key, value] of Object.entries(detected)) {
+      console.log(`  • ${key}: ${value}`)
+    }
+
+    const { useDetected } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'useDetected',
+      message: '使用這些識別結果？',
+      default: true
+    }])
+
+    if (useDetected) {
+      return await promptMissingConfig(detected)
+    }
+  }
+
+  console.log(chalk.yellow('\n將進入完整問答流程...\n'))
+  return await promptFullConfig()
+}
+
+// ============================================================
+// 完整問答流程（原有流程的重構）
+// ============================================================
+async function promptFullConfig() {
+  // Phase 1: 專案類型
+  const { projectType } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'projectType',
+      message: '這是什麼類型的專案？',
+      choices: [
+        { name: 'Web App (前後端)', value: 'web-app' },
+        { name: '純前端應用', value: 'frontend-only' },
+        { name: '純後端服務', value: 'backend-only' },
+        { name: 'CLI 工具', value: 'cli' },
+        { name: 'Library / SDK', value: 'library' },
+        { name: 'Microservice', value: 'microservice' },
+        { name: 'Monorepo', value: 'monorepo' },
+        { name: '其他（自行輸入）', value: 'other' }
+      ]
+    }
+  ])
+
+  let finalProjectType = projectType
+  if (projectType === 'other') {
+    const { customType } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customType',
+      message: '請輸入專案類型：'
+    }])
+    finalProjectType = customType
+  }
+
+  // Phase 2: 技術棧
+  let backendConfig = null
+  let frontendConfig = null
+  let databaseConfig = null
+
+  const hasBackend = ['web-app', 'backend-only', 'microservice', 'cli', 'monorepo'].includes(finalProjectType)
+  const hasFrontend = ['web-app', 'frontend-only', 'monorepo'].includes(finalProjectType)
+
+  if (hasBackend) {
+    backendConfig = await promptBackendConfig()
+  }
+
+  if (hasFrontend) {
+    frontendConfig = await promptFrontendConfig()
+  }
+
+  // 資料庫設定
+  if (hasBackend) {
+    const { hasDatabase } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'hasDatabase',
+      message: '專案是否需要資料庫？',
+      default: true
+    }])
+    if (hasDatabase) {
+      databaseConfig = await promptDatabaseConfig()
+    }
+  }
+
+  // Phase 3: 團隊規範
+  const teamConfig = await promptTeamConfig()
+
+  // Phase 4: 設計系統（如有前端）
+  let designConfig = { enabled: false }
+  if (hasFrontend) {
+    const { enableDesign } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'enableDesign',
+        message: '是否啟用設計系統？',
+        default: true
+      }
+    ])
+    designConfig = { enabled: enableDesign }
+
+    if (enableDesign) {
+      const { enableFigma } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'enableFigma',
+          message: '是否整合 Figma？',
+          default: false
+        }
+      ])
+      designConfig.figma = { enabled: enableFigma }
+    }
+  }
+
+  // Phase 5: 基礎設施（可選）
+  let infrastructureConfig = null
+  const { hasInfra } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'hasInfra',
+    message: '是否設定基礎設施 (CI/CD, 雲端部署)?',
+    default: false
+  }])
+  if (hasInfra) {
+    infrastructureConfig = await promptInfrastructureConfig()
+  }
+
+  // 組合設定
+  const { projectName } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'projectName',
+      message: '專案名稱：',
+      default: path.basename(process.cwd())
+    }
+  ])
+
+  return {
+    project: {
+      name: projectName,
+      type: finalProjectType
     },
     tech_stack: {
       backend: backendConfig,
@@ -246,21 +917,34 @@ async function promptBackendConfig() {
       name: 'language',
       message: '後端使用什麼語言？',
       choices: [
-        { name: 'Go (推薦)', value: 'go' },
+        { name: 'Go（推薦）', value: 'go' },
         { name: 'Python', value: 'python' },
         { name: 'Node.js (TypeScript)', value: 'node' },
         { name: 'Java', value: 'java' },
-        { name: 'Rust', value: 'rust' }
+        { name: 'Rust', value: 'rust' },
+        { name: 'C#', value: 'csharp' },
+        { name: '其他（自行輸入）', value: 'other' }
       ]
     }
   ])
+
+  let finalLanguage = language
+  if (language === 'other') {
+    const { customLanguage } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customLanguage',
+      message: '請輸入後端語言：'
+    }])
+    finalLanguage = customLanguage
+  }
 
   const frameworkChoices = {
     go: ['gin', 'echo', 'fiber', 'chi'],
     python: ['fastapi', 'django', 'flask'],
     node: ['express', 'nestjs', 'fastify', 'hono'],
     java: ['spring-boot', 'quarkus'],
-    rust: ['actix', 'axum']
+    rust: ['actix', 'axum'],
+    csharp: ['aspnet-core']
   }
 
   const ormChoices = {
@@ -268,35 +952,73 @@ async function promptBackendConfig() {
     python: ['sqlalchemy', 'django-orm', 'tortoise'],
     node: ['prisma', 'typeorm', 'drizzle'],
     java: ['jpa', 'mybatis'],
-    rust: ['diesel', 'sea-orm']
+    rust: ['diesel', 'sea-orm'],
+    csharp: ['entity-framework']
   }
 
-  const { framework, orm, architecture } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'framework',
-      message: '使用什麼框架？',
-      choices: frameworkChoices[language]
-    },
-    {
-      type: 'list',
-      name: 'orm',
-      message: '使用什麼 ORM？',
-      choices: ormChoices[language]
-    },
-    {
-      type: 'list',
-      name: 'architecture',
-      message: '架構模式？',
-      choices: [
-        { name: 'Clean Architecture (推薦)', value: 'clean' },
-        { name: 'Hexagonal', value: 'hexagonal' },
-        { name: 'Layered', value: 'layered' }
-      ]
-    }
-  ])
+  const frameworks = (frameworkChoices[finalLanguage] || []).map(f => ({ name: f, value: f }))
+  frameworks.push({ name: '其他（自行輸入）', value: 'other' })
 
-  return { language, framework, orm, architecture }
+  const orms = (ormChoices[finalLanguage] || []).map(o => ({ name: o, value: o }))
+  orms.push({ name: '其他（自行輸入）', value: 'other' })
+
+  const { framework } = await inquirer.prompt([{
+    type: 'list',
+    name: 'framework',
+    message: '使用什麼框架？',
+    choices: frameworks
+  }])
+
+  let finalFramework = framework
+  if (framework === 'other') {
+    const { customFramework } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customFramework',
+      message: '請輸入框架名稱：'
+    }])
+    finalFramework = customFramework
+  }
+
+  const { orm } = await inquirer.prompt([{
+    type: 'list',
+    name: 'orm',
+    message: '使用什麼 ORM？',
+    choices: orms
+  }])
+
+  let finalOrm = orm
+  if (orm === 'other') {
+    const { customOrm } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customOrm',
+      message: '請輸入 ORM：'
+    }])
+    finalOrm = customOrm
+  }
+
+  const { architecture } = await inquirer.prompt([{
+    type: 'list',
+    name: 'architecture',
+    message: '架構模式？',
+    choices: [
+      { name: 'Clean Architecture（推薦）', value: 'clean' },
+      { name: 'Hexagonal', value: 'hexagonal' },
+      { name: 'Layered', value: 'layered' },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalArchitecture = architecture
+  if (architecture === 'other') {
+    const { customArch } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customArch',
+      message: '請輸入架構模式：'
+    }])
+    finalArchitecture = customArch
+  }
+
+  return { language: finalLanguage, framework: finalFramework, orm: finalOrm, architecture: finalArchitecture }
 }
 
 async function promptFrontendConfig() {
@@ -306,178 +1028,327 @@ async function promptFrontendConfig() {
       name: 'framework',
       message: '前端使用什麼框架？',
       choices: [
-        { name: 'Next.js (推薦)', value: 'next' },
+        { name: 'Next.js（推薦）', value: 'next' },
         { name: 'React', value: 'react' },
         { name: 'Vue', value: 'vue' },
         { name: 'Nuxt', value: 'nuxt' },
         { name: 'Angular', value: 'angular' },
-        { name: 'Svelte', value: 'svelte' }
+        { name: 'Svelte', value: 'svelte' },
+        { name: '其他（自行輸入）', value: 'other' }
       ]
     }
   ])
 
-  const { uiFramework, styling, packageManager } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'uiFramework',
-      message: 'UI 框架？',
-      choices: [
-        { name: 'MUI (Material UI)', value: 'mui' },
-        { name: 'Ant Design', value: 'antd' },
-        { name: 'shadcn/ui', value: 'shadcn' },
-        { name: 'Tailwind (無元件庫)', value: 'tailwind' },
-        { name: 'Chakra UI', value: 'chakra' }
-      ]
-    },
-    {
-      type: 'list',
-      name: 'styling',
-      message: '樣式方案？',
-      choices: [
-        { name: 'CSS Modules (推薦)', value: 'css-modules' },
-        { name: 'Tailwind', value: 'tailwind' },
-        { name: 'Styled Components', value: 'styled-components' }
-      ]
-    },
-    {
-      type: 'list',
-      name: 'packageManager',
-      message: '套件管理器？',
-      choices: [
-        { name: 'pnpm (推薦)', value: 'pnpm' },
-        { name: 'npm', value: 'npm' },
-        { name: 'yarn', value: 'yarn' },
-        { name: 'bun', value: 'bun' }
-      ]
-    }
-  ])
+  let finalFramework = framework
+  if (framework === 'other') {
+    const { customFramework } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customFramework',
+      message: '請輸入前端框架：'
+    }])
+    finalFramework = customFramework
+  }
+
+  const { uiFramework } = await inquirer.prompt([{
+    type: 'list',
+    name: 'uiFramework',
+    message: 'UI 框架？',
+    choices: [
+      { name: 'MUI (Material UI)', value: 'mui' },
+      { name: 'Ant Design', value: 'antd' },
+      { name: 'shadcn/ui', value: 'shadcn' },
+      { name: 'Tailwind（無元件庫）', value: 'tailwind' },
+      { name: 'Chakra UI', value: 'chakra' },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalUiFramework = uiFramework
+  if (uiFramework === 'other') {
+    const { customUi } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customUi',
+      message: '請輸入 UI 框架：'
+    }])
+    finalUiFramework = customUi
+  }
+
+  const { styling } = await inquirer.prompt([{
+    type: 'list',
+    name: 'styling',
+    message: '樣式方案？',
+    choices: [
+      { name: 'CSS Modules（推薦）', value: 'css-modules' },
+      { name: 'Tailwind', value: 'tailwind' },
+      { name: 'Styled Components', value: 'styled-components' },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalStyling = styling
+  if (styling === 'other') {
+    const { customStyling } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customStyling',
+      message: '請輸入樣式方案：'
+    }])
+    finalStyling = customStyling
+  }
+
+  const { packageManager } = await inquirer.prompt([{
+    type: 'list',
+    name: 'packageManager',
+    message: '套件管理器？',
+    choices: [
+      { name: 'pnpm（推薦）', value: 'pnpm' },
+      { name: 'npm', value: 'npm' },
+      { name: 'yarn', value: 'yarn' },
+      { name: 'bun', value: 'bun' },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalPackageManager = packageManager
+  if (packageManager === 'other') {
+    const { customPm } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customPm',
+      message: '請輸入套件管理器：'
+    }])
+    finalPackageManager = customPm
+  }
 
   return {
     language: 'typescript',
-    framework,
-    ui_framework: { default: uiFramework },
-    styling,
-    package_manager: packageManager
+    framework: finalFramework,
+    ui_framework: { default: finalUiFramework },
+    styling: finalStyling,
+    package_manager: finalPackageManager
   }
 }
 
 async function promptDatabaseConfig() {
-  const { type, version } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'type',
-      message: '資料庫類型？',
-      choices: [
-        { name: 'PostgreSQL (推薦)', value: 'postgresql' },
-        { name: 'MySQL', value: 'mysql' },
-        { name: 'MongoDB', value: 'mongodb' },
-        { name: 'SQLite', value: 'sqlite' }
-      ]
-    },
-    {
-      type: 'input',
-      name: 'version',
-      message: '資料庫版本？',
-      default: '16'
-    }
-  ])
+  const { type } = await inquirer.prompt([{
+    type: 'list',
+    name: 'type',
+    message: '資料庫類型？',
+    choices: [
+      { name: 'PostgreSQL（推薦）', value: 'postgresql' },
+      { name: 'MySQL', value: 'mysql' },
+      { name: 'MongoDB', value: 'mongodb' },
+      { name: 'SQLite', value: 'sqlite' },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
 
-  return { type, version }
+  let finalType = type
+  if (type === 'other') {
+    const { customType } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customType',
+      message: '請輸入資料庫類型：'
+    }])
+    finalType = customType
+  }
+
+  const { version } = await inquirer.prompt([{
+    type: 'input',
+    name: 'version',
+    message: '資料庫版本？',
+    default: '16'
+  }])
+
+  return { type: finalType, version }
 }
 
 async function promptInfrastructureConfig() {
-  const { cloud, ciCd, iac } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'cloud',
-      message: '雲端平台？',
-      choices: [
-        { name: 'GCP', value: 'gcp' },
-        { name: 'AWS', value: 'aws' },
-        { name: 'Azure', value: 'azure' },
-        { name: 'Vercel', value: 'vercel' },
-        { name: 'None', value: null }
-      ]
-    },
-    {
-      type: 'list',
-      name: 'ciCd',
-      message: 'CI/CD 工具？',
-      choices: [
-        { name: 'GitHub Actions (推薦)', value: 'github-actions' },
-        { name: 'GitLab CI', value: 'gitlab-ci' },
-        { name: 'CircleCI', value: 'circleci' },
-        { name: 'None', value: null }
-      ]
-    },
-    {
-      type: 'list',
-      name: 'iac',
-      message: 'IaC 工具？',
-      choices: [
-        { name: 'Terraform (推薦)', value: 'terraform' },
-        { name: 'Pulumi', value: 'pulumi' },
-        { name: 'CDK', value: 'cdk' },
-        { name: 'None', value: null }
-      ]
-    }
-  ])
+  const { cloud } = await inquirer.prompt([{
+    type: 'list',
+    name: 'cloud',
+    message: '雲端平台？',
+    choices: [
+      { name: 'GCP', value: 'gcp' },
+      { name: 'AWS', value: 'aws' },
+      { name: 'Azure', value: 'azure' },
+      { name: 'Vercel', value: 'vercel' },
+      { name: '暫不決定', value: null },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalCloud = cloud
+  if (cloud === 'other') {
+    const { customCloud } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customCloud',
+      message: '請輸入雲端平台：'
+    }])
+    finalCloud = customCloud
+  }
+
+  const { ciCd } = await inquirer.prompt([{
+    type: 'list',
+    name: 'ciCd',
+    message: 'CI/CD 工具？',
+    choices: [
+      { name: 'GitHub Actions（推薦）', value: 'github-actions' },
+      { name: 'GitLab CI', value: 'gitlab-ci' },
+      { name: 'CircleCI', value: 'circleci' },
+      { name: 'Jenkins', value: 'jenkins' },
+      { name: '暫不使用', value: null },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalCiCd = ciCd
+  if (ciCd === 'other') {
+    const { customCiCd } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customCiCd',
+      message: '請輸入 CI/CD 工具：'
+    }])
+    finalCiCd = customCiCd
+  }
+
+  const { iac } = await inquirer.prompt([{
+    type: 'list',
+    name: 'iac',
+    message: 'IaC 工具？',
+    choices: [
+      { name: 'Terraform（推薦）', value: 'terraform' },
+      { name: 'Pulumi', value: 'pulumi' },
+      { name: 'CDK', value: 'cdk' },
+      { name: '暫不使用', value: null },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalIac = iac
+  if (iac === 'other') {
+    const { customIac } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customIac',
+      message: '請輸入 IaC 工具：'
+    }])
+    finalIac = customIac
+  }
 
   return {
-    cloud,
-    ci_cd: ciCd,
-    iac
+    cloud: finalCloud,
+    ci_cd: finalCiCd,
+    iac: finalIac
   }
 }
 
 async function promptTeamConfig() {
-  const { testCoverage, e2eRequired, gitWorkflow, reviewAgents } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'testCoverage',
-      message: '最低測試覆蓋率要求？',
-      choices: [
-        { name: '80% (推薦)', value: 80 },
-        { name: '70%', value: 70 },
-        { name: '60%', value: 60 },
-        { name: '90%', value: 90 }
-      ]
-    },
-    {
-      type: 'confirm',
-      name: 'e2eRequired',
-      message: '是否強制 E2E 測試？',
-      default: true
-    },
-    {
-      type: 'list',
-      name: 'gitWorkflow',
-      message: 'Git 工作流程？',
-      choices: [
-        { name: 'GitHub Flow (推薦)', value: 'github-flow' },
-        { name: 'GitFlow', value: 'gitflow' },
-        { name: 'Trunk-based', value: 'trunk-based' }
-      ]
-    },
-    {
-      type: 'checkbox',
-      name: 'reviewAgents',
-      message: '啟用哪些 Review Agents？',
-      choices: [
-        { name: 'Security (強制)', value: 'security', checked: true, disabled: true },
-        { name: 'Test', value: 'test', checked: true },
-        { name: 'Quality', value: 'quality', checked: true },
-        { name: 'PM', value: 'pm', checked: true }
-      ]
-    }
-  ])
+  const { testCoverage } = await inquirer.prompt([{
+    type: 'list',
+    name: 'testCoverage',
+    message: '最低測試覆蓋率要求？',
+    choices: [
+      { name: '80%（推薦）', value: 80 },
+      { name: '70%', value: 70 },
+      { name: '60%', value: 60 },
+      { name: '90%', value: 90 },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalTestCoverage = testCoverage
+  if (testCoverage === 'other') {
+    const { customCoverage } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customCoverage',
+      message: '請輸入覆蓋率要求（數字）：',
+      validate: (input) => !isNaN(parseInt(input)) || '請輸入數字'
+    }])
+    finalTestCoverage = parseInt(customCoverage)
+  }
+
+  const { e2eRequired } = await inquirer.prompt([{
+    type: 'list',
+    name: 'e2eRequired',
+    message: '是否強制 E2E 測試？',
+    choices: [
+      { name: 'Yes（推薦）', value: true },
+      { name: 'No', value: false },
+      { name: '其他（說明）', value: 'other' }
+    ]
+  }])
+
+  let finalE2eRequired = e2eRequired
+  if (e2eRequired === 'other') {
+    const { customE2e } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customE2e',
+      message: '請說明 E2E 測試策略：'
+    }])
+    // 預設還是 true，但可以記錄說明
+    finalE2eRequired = true
+  }
+
+  const { gitWorkflow } = await inquirer.prompt([{
+    type: 'list',
+    name: 'gitWorkflow',
+    message: 'Git 工作流程？',
+    choices: [
+      { name: 'GitHub Flow（推薦）', value: 'github-flow' },
+      { name: 'GitFlow', value: 'gitflow' },
+      { name: 'Trunk-based', value: 'trunk-based' },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalGitWorkflow = gitWorkflow
+  if (gitWorkflow === 'other') {
+    const { customWorkflow } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customWorkflow',
+      message: '請輸入 Git 工作流程：'
+    }])
+    finalGitWorkflow = customWorkflow
+  }
+
+  const { commitConvention } = await inquirer.prompt([{
+    type: 'list',
+    name: 'commitConvention',
+    message: 'Commit 規範？',
+    choices: [
+      { name: 'Conventional Commits（推薦）', value: 'conventional' },
+      { name: 'Angular', value: 'angular' },
+      { name: 'Semantic', value: 'semantic' },
+      { name: '其他（自行輸入）', value: 'other' }
+    ]
+  }])
+
+  let finalCommitConvention = commitConvention
+  if (commitConvention === 'other') {
+    const { customCommit } = await inquirer.prompt([{
+      type: 'input',
+      name: 'customCommit',
+      message: '請輸入 Commit 規範：'
+    }])
+    finalCommitConvention = customCommit
+  }
+
+  const { reviewAgents } = await inquirer.prompt([{
+    type: 'checkbox',
+    name: 'reviewAgents',
+    message: '啟用哪些 Review Agents？',
+    choices: [
+      { name: 'Security（強制）', value: 'security', checked: true, disabled: true },
+      { name: 'Test', value: 'test', checked: true },
+      { name: 'Quality', value: 'quality', checked: true },
+      { name: 'PM', value: 'pm', checked: true }
+    ]
+  }])
 
   return {
-    test_coverage: testCoverage,
-    e2e_required: e2eRequired,
+    test_coverage: finalTestCoverage,
+    e2e_required: finalE2eRequired,
     e2e_framework: 'playwright',
-    git_workflow: gitWorkflow,
-    commit_convention: 'conventional',
+    git_workflow: finalGitWorkflow,
+    commit_convention: finalCommitConvention,
     review_required: true,
     review_agents: ['security', ...reviewAgents.filter(a => a !== 'security')]
   }
