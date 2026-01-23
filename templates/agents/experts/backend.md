@@ -99,6 +99,52 @@ var (
 | `handler.go` | ✅ 必須 | `handler_test.go` |
 | `repository.go` | ✅ 必須 | `repository_gorm_test.go` |
 
+#### ⚠️ Handler 測試：Mock Context 必須與真實 Middleware 一致
+
+**問題案例**：測試中使用 `uuid.UUID` 設定 context，但真實 AuthMiddleware 設定的是 `*uuid.UUID`，導致 type assertion 失敗。
+
+```go
+// ❌ 錯誤：與真實 middleware 型別不一致
+func setupTestRouter(handler *Handler, userID, orgID uuid.UUID) *gin.Engine {
+    router.Use(func(ctx *gin.Context) {
+        ctx.Set("userId", userID)
+        ctx.Set("organizationId", orgID)  // uuid.UUID (值型別)
+        ctx.Next()
+    })
+}
+
+// ✅ 正確：使用與 AuthMiddleware 一致的型別
+func setupTestRouter(handler *Handler, userID, orgID uuid.UUID) *gin.Engine {
+    router.Use(func(ctx *gin.Context) {
+        ctx.Set("userId", userID)
+        ctx.Set("organizationId", &orgID)  // *uuid.UUID (指標型別，與真實 middleware 一致)
+        ctx.Next()
+    })
+}
+```
+
+**防範措施**：
+
+1. 檢查真實 middleware 設定的型別（`pkg/middleware/auth.go`）
+2. Handler 中的 `getContextIDs` 應支援多種型別（防禦性程式設計）
+3. 測試 nil pointer 情況（用戶無組織）
+
+```go
+// 防禦性程式設計：支援 *uuid.UUID 和 uuid.UUID
+var orgID uuid.UUID
+switch v := orgIDValue.(type) {
+case *uuid.UUID:
+    if v == nil {
+        return uuid.Nil, uuid.Nil, errOrgIDNotFound
+    }
+    orgID = *v
+case uuid.UUID:
+    orgID = v
+default:
+    return uuid.Nil, uuid.Nil, errInvalidOrgID
+}
+```
+
 **Service 測試範例（Table-Driven Tests）**：
 
 ```go
