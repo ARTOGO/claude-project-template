@@ -1,6 +1,7 @@
 # Design Command
 
 完整設計流程：UX 設計 → UI 設計 → Design Review，並在 NEEDS_CHANGES 時自動修改後重新審查。
+設計完成後自動更新 PRD 和 TICKETS.md。
 
 ## Usage
 
@@ -10,6 +11,11 @@
 
 # 模式 2: 讀取 Figma 設計稿轉換成 MD（當 Figma 已有設計時）
 /project:design <功能或元件描述> --figma <Figma URL>
+
+# 模式 3: 根據 PRD 和 TICKET 產出設計（補齊現有 Tickets 的設計稿）
+/project:design TICKET-XXX
+/project:design TICKET-001,TICKET-002,TICKET-003
+/project:design --phase 2                    # Phase 2 所有需要設計的 Tickets
 ```
 
 ## 前置條件
@@ -23,6 +29,65 @@
 這會將 Figma Design System 轉換成專案格式，後續設計才能正確參照 Design Tokens 和元件規範。
 
 ## 執行流程
+
+### 模式 3: 根據 PRD 和 TICKET 產出設計（推薦）
+
+當已有 PRD 和 TICKETS.md，但缺少設計稿時使用：
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│     /project:design TICKET-XXX 或 --phase N                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  1. 解析 Tickets                                                     │
+│     ├─ 讀取 docs/TICKETS.md                                          │
+│     ├─ 識別指定的 TICKET(s)                                          │
+│     └─ 檢查 Ticket 類型（只處理 Frontend / Full-Stack）              │
+│                                                                     │
+│  2. 讀取 PRD 需求                                                    │
+│     ├─ 從 Ticket 找到「相關 PRD」欄位                                │
+│     ├─ 讀取 docs/PRD.md 對應章節                                     │
+│     └─ 提取用戶故事、功能需求、介面需求                              │
+│                                                                     │
+│  3. Phase 1: UX 設計 (UX/UI Designer Agent)                          │
+│     ├─ 用戶流程 (User Flow)                                          │
+│     ├─ 資訊架構 (IA)                                                 │
+│     └─ Wireframe                                                    │
+│     └─ 輸出到 docs/designs/ux/                                       │
+│                                                                     │
+│  4. Phase 2: UI 設計 (UX/UI Designer Agent)                          │
+│     ├─ 視覺設計（基於 Wireframe + design-system.md）                  │
+│     ├─ 元件規格                                                      │
+│     └─ 輸出 MD 設計稿                                                │
+│     └─ 輸出到 docs/designs/components/ 或 pages/                     │
+│                                                                     │
+│  5. Design Review（並行審查，最多 3 輪）                               │
+│     ├─ PRD Alignment (critical)                                      │
+│     ├─ Accessibility (high)                                          │
+│     ├─ Design System (high)                                          │
+│     └─ UX Alignment (high)                                          │
+│                                                                     │
+│  6. 更新 PRD 和 TICKETS                                              │
+│     ├─ 更新 docs/TICKETS.md：設計稿欄位                              │
+│     │     設計稿: [ComponentA.md](designs/components/ComponentA.md) │
+│     └─ 更新 docs/PRD.md：介面設計章節（可選）                        │
+│           新增「設計參考」連結                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 模式 3 使用範例
+
+```bash
+# 單一 Ticket
+/project:design TICKET-015
+
+# 多個 Tickets
+/project:design TICKET-015,TICKET-016,TICKET-017
+
+# Phase 批次處理（會自動找出該 Phase 中所有 Frontend/Full-Stack 類型且缺少設計稿的 Tickets）
+/project:design --phase 2
+```
+
+---
 
 ### 模式 1: AI 產出設計（無 --figma）
 
@@ -260,6 +325,71 @@ Findings:
 
 ---
 
+## Step 6: 更新 PRD 和 TICKETS
+
+設計完成後，自動更新相關文件：
+
+### 6.1 更新 TICKETS.md
+
+在對應 Ticket 的「設計稿」欄位新增設計稿連結：
+
+```markdown
+### 🎫 TICKET-015: 組織成員列表
+
+**類型**: Full-Stack
+
+**設計稿**:
+- UX: [member-management-flow.md](designs/ux/flows/member-management-flow.md)
+- UX: [members-page-wireframe.md](designs/ux/wireframes/members-page-wireframe.md)
+- UI: [MemberList.md](designs/components/MemberList.md)
+- UI: [members.md](designs/pages/members.md)
+
+...（其餘欄位不變）
+```
+
+### 6.2 更新 PRD.md（可選）
+
+如果 PRD 中有對應的介面設計章節，新增設計參考連結：
+
+```markdown
+## F1.5 組織成員管理
+
+### 介面設計
+
+**設計稿參考**:
+- [用戶流程](designs/ux/flows/member-management-flow.md)
+- [頁面 Wireframe](designs/ux/wireframes/members-page-wireframe.md)
+- [MemberList 元件](designs/components/MemberList.md)
+- [成員管理頁面](designs/pages/members.md)
+
+...（其餘章節不變）
+```
+
+### 6.3 更新確認對話
+
+設計完成後，顯示更新摘要：
+
+```markdown
+## 文件更新摘要
+
+### TICKETS.md 已更新
+
+| Ticket | 更新內容 |
+|--------|----------|
+| TICKET-015 | 新增設計稿欄位（4 個連結）|
+| TICKET-016 | 新增設計稿欄位（2 個連結）|
+
+### PRD.md 已更新
+
+| 章節 | 更新內容 |
+|------|----------|
+| F1.5 組織成員管理 | 新增「設計稿參考」|
+
+確認更新？[Y/n]
+```
+
+---
+
 ## Examples
 
 ### 範例 1：完整功能設計
@@ -312,6 +442,58 @@ Findings:
 
 # 3. 新功能設計 - 沒有 Figma，AI 根據同步後的 design-system.md 產出
 /project:design 通知中心功能
+```
+
+### 範例 6：根據 PRD 和 TICKET 產出設計（模式 3）
+
+**情境**：PRD 已完成，Tickets 已建立，但缺少設計稿
+
+```bash
+# 為單一 Ticket 補齊設計
+/project:design TICKET-015
+```
+
+輸出：
+
+- 讀取 TICKET-015 的描述和驗收條件
+- 讀取 PRD 對應章節（F1.5）
+- 產出 UX: `member-management-flow.md`, `members-page-wireframe.md`
+- 產出 UI: `MemberList.md`, `InviteMemberDialog.md`, `members.md`
+- **自動更新 TICKETS.md**: 在 TICKET-015 新增設計稿連結
+- **自動更新 PRD.md**: 在 F1.5 章節新增設計參考
+
+```bash
+# 為 Phase 2 所有 Frontend/Full-Stack Tickets 補齊設計
+/project:design --phase 2
+```
+
+輸出：
+
+- 掃描 Phase 2 的所有 Tickets
+- 過濾出 Frontend / Full-Stack 類型且缺少設計稿的 Tickets
+- 依序為每個 Ticket 產出設計（或詢問是否批次處理）
+- 完成後一次性更新 TICKETS.md 和 PRD.md
+
+### 範例 7：多個 Tickets 批次設計
+
+```bash
+/project:design TICKET-015,TICKET-016,TICKET-017
+```
+
+輸出：
+
+```text
+## 批次設計結果
+
+| Ticket | 類型 | UX 設計 | UI 設計 | 狀態 |
+|--------|------|---------|---------|------|
+| TICKET-015 | Full-Stack | 2 檔案 | 3 檔案 | ✅ |
+| TICKET-016 | Frontend | 1 檔案 | 2 檔案 | ✅ |
+| TICKET-017 | Backend | - | - | ⏭️ 跳過（純後端）|
+
+### 已更新文件
+- docs/TICKETS.md ✅ (2 筆)
+- docs/PRD.md ✅ (2 筆)
 ```
 
 ---

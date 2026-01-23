@@ -121,6 +121,97 @@ program
   })
 
 // ============================================================
+// Update Commands
+// ============================================================
+program
+  .command('update-commands')
+  .description('Update .claude/commands/ to latest version')
+  .option('--force', 'Force overwrite all commands (including customized ones)')
+  .option('--dry-run', 'Show what would be updated without making changes')
+  .action(async (options) => {
+    console.log(chalk.blue('\n🔄 更新 Claude Commands\n'))
+
+    const claudeDir = path.join(process.cwd(), '.claude')
+    const commandsDir = path.join(claudeDir, 'commands')
+
+    if (!await fs.pathExists(claudeDir)) {
+      console.log(chalk.red('錯誤: 找不到 .claude 目錄'))
+      console.log('請先執行 `claude-project-template init`')
+      process.exit(1)
+    }
+
+    // 確保 commands 目錄存在
+    await fs.ensureDir(commandsDir)
+
+    const templateCommandsDir = path.join(__dirname, '..', 'templates', 'commands')
+    const templateFiles = await fs.readdir(templateCommandsDir)
+
+    const updates = []
+    const skipped = []
+    const added = []
+
+    for (const file of templateFiles) {
+      if (!file.endsWith('.md')) continue
+
+      const templatePath = path.join(templateCommandsDir, file)
+      const targetPath = path.join(commandsDir, file)
+
+      if (await fs.pathExists(targetPath)) {
+        if (options.force) {
+          updates.push(file)
+          if (!options.dryRun) {
+            await fs.copy(templatePath, targetPath, { overwrite: true })
+          }
+        } else {
+          // 比較檔案是否相同
+          const templateContent = await fs.readFile(templatePath, 'utf8')
+          const targetContent = await fs.readFile(targetPath, 'utf8')
+
+          if (templateContent !== targetContent) {
+            skipped.push(file)
+          }
+        }
+      } else {
+        added.push(file)
+        if (!options.dryRun) {
+          await fs.copy(templatePath, targetPath)
+        }
+      }
+    }
+
+    // 顯示結果
+    if (options.dryRun) {
+      console.log(chalk.yellow('🔍 Dry Run 模式（不會實際修改檔案）\n'))
+    }
+
+    if (added.length > 0) {
+      console.log(chalk.green('✅ 新增的指令：'))
+      added.forEach(f => console.log(`   + ${f}`))
+      console.log('')
+    }
+
+    if (updates.length > 0) {
+      console.log(chalk.blue('🔄 已更新的指令：'))
+      updates.forEach(f => console.log(`   ↻ ${f}`))
+      console.log('')
+    }
+
+    if (skipped.length > 0) {
+      console.log(chalk.yellow('⏭️ 跳過的指令（有本地修改）：'))
+      skipped.forEach(f => console.log(`   - ${f}`))
+      console.log('')
+      console.log(chalk.dim('   使用 --force 強制覆蓋這些檔案'))
+      console.log('')
+    }
+
+    if (added.length === 0 && updates.length === 0 && skipped.length === 0) {
+      console.log(chalk.green('✅ 所有指令都是最新版本！'))
+    } else if (!options.dryRun) {
+      console.log(chalk.green(`✅ 更新完成！新增 ${added.length} 個，更新 ${updates.length} 個`))
+    }
+  })
+
+// ============================================================
 // Helper Functions
 // ============================================================
 
