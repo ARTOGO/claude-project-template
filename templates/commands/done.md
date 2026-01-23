@@ -8,58 +8,73 @@
 /project:done [TICKET-XXX]
 ```
 
+## 執行前準備
+
+**讀取專案配置**：
+```bash
+# 讀取 .claude/project.yaml 確認：
+# - paths.backend: 後端程式碼目錄
+# - paths.frontend: 前端程式碼目錄
+# - paths.tickets: Tickets 檔案路徑
+# - tech_stack.backend.language: 後端語言
+# - tech_stack.frontend.package_manager: 前端套件管理器
+# - team.test_coverage: 測試覆蓋率要求
+# - team.linter.backend / team.linter.frontend: Linter 設定
+```
+
 ## 執行流程
 
 ### 1. 整合驗證（關鍵步驟）
 
-**此步驟防止「單元測試通過但 API 未註冊」的問題！**
+**此步驟防止「單元測試通過但功能未整合」的問題！**
+
+**整合驗證 Checklist**（依專案架構調整）：
+
+| 項目 | 說明 |
+| ---- | ---- |
+| 新增的模組已 import | ☐ 檢查進入點檔案 |
+| 路由/端點已註冊 | ☐ 非 placeholder/notImplemented |
+| 服務可啟動 | ☐ 重啟後無錯誤 |
+| API 可存取 | ☐ 返回預期狀態碼 |
+
+**驗證命令範例**（依 project.yaml 調整）：
 
 ```bash
-# 檢查新增的 handler 是否已註冊到 main.go
-# 例如：檢查 connection handler
-grep -q "connHandler" backend/cmd/server/main.go || echo "❌ FAIL: Handler not in main.go"
+# 依 paths.backend 和專案結構調整以下命令
 
-# 檢查路由是否使用實際 handler（非 notImplemented）
-grep "/connections" backend/cmd/server/main.go | grep -v "notImplemented" || echo "❌ FAIL: Route uses notImplemented"
+# 檢查模組是否已註冊（範例）
+grep -q "<feature>Handler" ${paths.backend}/cmd/server/main.go
 
-# 重啟 Docker 驗證 API 可用
-docker restart insighthub-backend && sleep 5
-docker logs insighthub-backend 2>&1 | tail -20
-# 確認看到真實 handler 路由，而非 notImplemented
+# 重啟服務驗證（依部署方式調整）
+# Docker: docker restart <container-name>
+# Local: 重啟開發伺服器
+# K8s: kubectl rollout restart deployment/<name>
+
+# 驗證 API 可用
+curl -X GET http://localhost:<port>/api/v1/<endpoint>
 ```
-
-**整合驗證 Checklist**：
-
-| 項目 | 狀態 |
-| ---- | ---- |
-| Handler 已在 main.go import | ☐ |
-| Handler 已在 handlers struct | ☐ |
-| Handler 已初始化 | ☐ |
-| 路由已註冊（非 notImplemented） | ☐ |
-| Docker 重啟後 API 返回 200 | ☐ |
 
 ### 2. 執行測試
 
-```bash
-# Backend (Go)
-cd backend && go test -v -race -coverprofile=coverage.out ./...
+**依 `project.yaml` 的 `tech_stack` 執行對應測試命令**：
 
-# Frontend Unit Tests (Vitest)
-cd frontend && pnpm run test:coverage
-
-# Frontend E2E Tests (Playwright)
-cd frontend && pnpm run test:e2e
-```
+| 語言/框架 | 單元測試 | E2E 測試 |
+| --------- | -------- | -------- |
+| Go | `go test -v -race -coverprofile=coverage.out ./...` | - |
+| Python | `pytest --cov` | `pytest e2e/` |
+| Node (pnpm) | `pnpm test:coverage` | `pnpm test:e2e` |
+| Node (npm) | `npm run test:coverage` | `npm run test:e2e` |
 
 ### 3. 執行 Lint
 
-```bash
-# Backend
-cd backend && golangci-lint run
+**依 `project.yaml` 的 `team.linter` 設定執行**：
 
-# Frontend
-cd frontend && pnpm run lint
-```
+| Linter | 命令 |
+| ------ | ---- |
+| golangci-lint | `golangci-lint run` |
+| eslint | `pnpm lint` 或 `npm run lint` |
+| pylint/ruff | `ruff check .` |
+| biome | `biome check .` |
 
 ### 4. 檢查 Git 狀態
 
@@ -70,7 +85,14 @@ git diff --stat
 
 ### 5. Multi-Agent Review
 
-→ 參考 [code-review-agents.md](../templates/code-review-agents.md)
+啟動 Review Agents（依 `team.review_agents` 設定）：
+
+| Agent | 職責 |
+|-------|------|
+| 🔒 Security | OWASP Top 10、Secrets 檢測 |
+| 🧪 Test | 測試覆蓋率、E2E 完整性 |
+| 📐 Quality | 架構規範、程式碼品質 |
+| 📋 PM | 驗收條件完成度 |
 
 **Security FAIL → 立即停止**
 
@@ -88,7 +110,7 @@ git diff --stat
 ## Test Results
 - Backend: X passed, XX% coverage
 - Frontend Unit: X passed, XX% coverage
-- Frontend E2E: X passed (auth, flows)
+- Frontend E2E: X passed
 
 ## Multi-Agent Review
 | Agent | 狀態 | 摘要 |
@@ -104,29 +126,21 @@ git diff --stat
 ❌ FAIL - 必須修復: [問題清單]
 ```
 
-### 7. 更新 TICKETS.md
+### 7. 更新 TICKETS 檔案
 
-**當 Review PASS 後，必須立即更新 `docs/TICKETS.md`：**
+**當 Review PASS 後，更新 `{paths.tickets}` 檔案：**
 
-1. **勾選驗收條件**：將完成的驗收條件 `[ ]` 改為 `[x]`
-2. **更新狀態**：在進度追蹤表格中，將 Ticket 狀態從 🔵 改為 ✅
-3. **填寫完成日期**：格式 `YYYY-MM-DD`（如 `2026-01-20`）
+1. **勾選驗收條件**：將 `[ ]` 改為 `[x]`
+2. **更新狀態**：將 Ticket 狀態從 🔵 改為 ✅
+3. **填寫完成日期**：格式 `YYYY-MM-DD`
 4. **更新進度統計**：更新 Phase 進度百分比
 
-**範例：**
-
-```markdown
-| Ticket | 名稱 | 狀態 | 完成日期 | 備註 |
-|--------|------|------|----------|------|
-| 001 | 基礎專案架構與 CI/CD | ✅ | 2026-01-20 | GitHub Actions 本地同步完成 |
-```
-
-**重要**：不更新 TICKETS.md = 工作未完成
+**重要**：不更新 TICKETS = 工作未完成
 
 ## FAIL 條件
 
-1. **整合驗證失敗** - Handler 未註冊到 main.go、API 返回 501 NOT_IMPLEMENTED
-2. 測試失敗或覆蓋率 < 80%
+1. **整合驗證失敗** - 模組未註冊、API 無法存取
+2. 測試失敗或覆蓋率 < `{team.test_coverage}%`
 3. E2E 測試失敗（關鍵流程）
 4. Lint errors
 5. Security Agent: Critical 問題
@@ -136,6 +150,7 @@ git diff --stat
 
 ## 相關檔案
 
+- `.claude/project.yaml` - 專案配置（路徑、技術棧）
 - `.claude/agents/reviewers/security.md`
 - `.claude/agents/reviewers/test.md`
 - `.claude/agents/reviewers/quality.md`

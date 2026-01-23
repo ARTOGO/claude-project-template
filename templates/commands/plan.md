@@ -12,6 +12,18 @@
 /project:plan 新增組織成員管理
 ```
 
+## 執行前準備
+
+**讀取專案配置**：
+```bash
+# 讀取 .claude/project.yaml 確認：
+# - paths.tickets: Tickets 檔案路徑（預設 docs/TICKETS.md）
+# - paths.prd: PRD 檔案路徑（預設 docs/PRD.md）
+# - paths.designs: 設計稿目錄
+# - design.enabled: 是否啟用設計系統
+# - team.test_coverage: 測試覆蓋率要求
+```
+
 ## 執行流程
 
 ```text
@@ -21,7 +33,7 @@
 │                                                                                 │
 │  Phase 1: PRD 檢查與更新                                                        │
 │     │                                                                           │
-│     ├─ 讀取 docs/PRD.md（路徑從 project.yaml 取得）                             │
+│     ├─ 讀取 {paths.prd}（路徑從 project.yaml 取得）                             │
 │     │                                                                           │
 │     └─ 需求是否在 PRD？                                                         │
 │        │                                                                        │
@@ -92,8 +104,8 @@
 **類型**: Full-Stack | Frontend | Backend
 
 **設計稿**: (僅 Full-Stack / Frontend 需要)
-- [ComponentA.md](designs/components/ComponentA.md)
-- [PageB.md](designs/pages/PageB.md)
+- [{paths.designs}/components/ComponentA.md]
+- [{paths.designs}/pages/PageB.md]
 
 **描述**:
 [功能詳細描述]
@@ -102,7 +114,7 @@
 - [ ] `POST /api/v1/xxx` endpoint
 - [ ] 請求/回應格式正確
 - [ ] 錯誤處理完整
-- [ ] 單元測試覆蓋率 > 80%
+- [ ] 單元測試覆蓋率 > {team.test_coverage}%
 
 **Frontend 驗收條件**: (如適用)
 - [ ] 依照設計稿實作元件
@@ -218,6 +230,13 @@
 
 ## 相關文件
 
-- [WORKFLOWS.md](../WORKFLOWS.md) - 完整開發流程
-- [design.md](./design.md) - 設計命令
-- [start-dev.md](./start-dev.md) - 開發命令
+- `.claude/project.yaml` - 專案配置
+- `.claude/templates/development-workflow.md` - 完整開發流程
+- `.claude/templates/ticket-format.md` - Ticket 格式規範
+- `.claude/commands/design.md` - 設計命令
+- `.claude/commands/start-dev.md` - 開發命令
+
+---
+
+**類型**: 需求規劃指令
+**依賴**: `project.yaml` 路徑設定

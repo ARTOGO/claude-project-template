@@ -1,7 +1,19 @@
 # Design Command
 
 完整設計流程：UX 設計 → UI 設計 → Design Review，並在 NEEDS_CHANGES 時自動修改後重新審查。
-設計完成後自動更新 PRD 和 TICKETS.md。
+設計完成後自動更新 PRD 和 TICKETS。
+
+## 執行前準備
+
+**讀取專案配置**：
+```bash
+# 讀取 .claude/project.yaml 確認：
+# - paths.tickets: Tickets 檔案路徑
+# - paths.prd: PRD 檔案路徑
+# - paths.designs: 設計稿目錄
+# - design.enabled: 是否啟用設計系統
+# - design.tokens_path: Design Tokens 路徑
+```
 
 ## Usage
 
@@ -39,26 +51,26 @@
 │     /project:design TICKET-XXX 或 --phase N                         │
 ├─────────────────────────────────────────────────────────────────────┤
 │  1. 解析 Tickets                                                     │
-│     ├─ 讀取 docs/TICKETS.md                                          │
+│     ├─ 讀取 {paths.tickets}                                          │
 │     ├─ 識別指定的 TICKET(s)                                          │
 │     └─ 檢查 Ticket 類型（只處理 Frontend / Full-Stack）              │
 │                                                                     │
 │  2. 讀取 PRD 需求                                                    │
 │     ├─ 從 Ticket 找到「相關 PRD」欄位                                │
-│     ├─ 讀取 docs/PRD.md 對應章節                                     │
+│     ├─ 讀取 {paths.prd} 對應章節                                     │
 │     └─ 提取用戶故事、功能需求、介面需求                              │
 │                                                                     │
 │  3. Phase 1: UX 設計 (UX/UI Designer Agent)                          │
 │     ├─ 用戶流程 (User Flow)                                          │
 │     ├─ 資訊架構 (IA)                                                 │
 │     └─ Wireframe                                                    │
-│     └─ 輸出到 docs/designs/ux/                                       │
+│     └─ 輸出到 {paths.designs}/ux/                                    │
 │                                                                     │
 │  4. Phase 2: UI 設計 (UX/UI Designer Agent)                          │
 │     ├─ 視覺設計（基於 Wireframe + design-system.md）                  │
 │     ├─ 元件規格                                                      │
 │     └─ 輸出 MD 設計稿                                                │
-│     └─ 輸出到 docs/designs/components/ 或 pages/                     │
+│     └─ 輸出到 {paths.designs}/components/ 或 pages/                  │
 │                                                                     │
 │  5. Design Review（並行審查，最多 3 輪）                               │
 │     ├─ PRD Alignment (critical)                                      │
@@ -67,9 +79,9 @@
 │     └─ UX Alignment (high)                                          │
 │                                                                     │
 │  6. 更新 PRD 和 TICKETS                                              │
-│     ├─ 更新 docs/TICKETS.md：設計稿欄位                              │
-│     │     設計稿: [ComponentA.md](designs/components/ComponentA.md) │
-│     └─ 更新 docs/PRD.md：介面設計章節（可選）                        │
+│     ├─ 更新 {paths.tickets}：設計稿欄位                              │
+│     │     設計稿: [{paths.designs}/components/ComponentA.md]        │
+│     └─ 更新 {paths.prd}：介面設計章節（可選）                        │
 │           新增「設計參考」連結                                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -500,8 +512,9 @@ Findings:
 
 ## 相關檔案
 
-- `docs/PRD.md` - 產品需求文件
-- `docs/designs/` - 設計稿目錄
+- `.claude/project.yaml` - 專案配置
+- `{paths.prd}` - 產品需求文件
+- `{paths.designs}` - 設計稿目錄
 - `.claude/agents/experts/ux-ui-designer.md` - UX/UI Designer Agent
 - `.claude/agents/experts/accessibility-expert.md` - 無障礙專家
 - `.claude/agents/experts/design-system-architect.md` - 設計系統架構師
@@ -509,4 +522,9 @@ Findings:
 - `.claude/commands/ux.md` - UX 設計指令（只有 Phase 1）
 - `.claude/commands/ui.md` - UI 設計指令（只有 Phase 2）
 - `.claude/commands/sync-design-system.md` - 同步 Figma Design System
-- `.claude/patterns/multi-agent-review.md` - Review Pattern 規範
+- `.claude/templates/development-workflow.md` - 完整開發流程
+
+---
+
+**類型**: 設計流程指令
+**依賴**: `project.yaml` 設計系統設定

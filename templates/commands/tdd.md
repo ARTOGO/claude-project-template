@@ -8,6 +8,20 @@
 /project:tdd <TICKET-XXX 或 feature description>
 ```
 
+## 執行前準備
+
+**讀取專案配置**：
+```bash
+# 讀取 .claude/project.yaml 確認：
+# - paths.backend: 後端程式碼目錄
+# - paths.frontend: 前端程式碼目錄
+# - paths.tickets: Tickets 檔案路徑
+# - paths.designs: 設計稿目錄
+# - tech_stack.backend.language: 後端語言
+# - tech_stack.frontend.testing: 前端測試框架
+# - team.test_coverage: 測試覆蓋率要求
+```
+
 ## 參考 Agents
 
 | Agent | 檔案位置 | 用途 |
@@ -29,7 +43,7 @@
 
 ```bash
 # 讀取 TICKET 資訊
-Read docs/TICKETS.md
+Read {paths.tickets}
 
 # 檢查 TICKET 類型和設計稿
 ```
@@ -49,8 +63,8 @@ Read docs/TICKETS.md
 
 ```bash
 # 讀取設計稿
-Read docs/designs/components/MemberList.md
-Read docs/designs/design-system.md  # Design Tokens
+Read {paths.designs}/components/<ComponentName>.md
+Read {paths.designs}/design-system.md  # Design Tokens
 ```
 
 **設計稿將用於**：
@@ -127,11 +141,19 @@ Task: 使用 test-automator agent 分析需求並生成初始測試案例
 3. 執行測試確認失敗
 
 ```bash
-# Go
-go test -v ./internal/<service>/... -run Test<Feature>
+# 依 tech_stack.backend.language 選擇：
 
-# TypeScript
-pnpm run test -- --testNamePattern="<feature>"
+# Go
+cd {paths.backend} && go test -v ./internal/<service>/... -run Test<Feature>
+
+# Python
+cd {paths.backend} && pytest -k "<feature>" -v
+
+# Node.js (Backend)
+cd {paths.backend} && {pm} test -- --testNamePattern="<feature>"
+
+# Frontend
+cd {paths.frontend} && {pm} test -- --testNamePattern="<feature>"
 ```
 
 **有設計稿時的測試範例**：
@@ -323,10 +345,39 @@ export function MemberList({ members, loading, onRemove, onRoleChange }: IMember
 
 ---
 
+---
+
+## TDD 強制規則
+
+**以下行為會被 Test Reviewer 拒絕**：
+
+| 違規行為 | 說明 |
+|---------|------|
+| 先寫實作再補測試 | 測試 commit 時間必須早於實作 |
+| 測試未覆蓋驗收條件 | 每個驗收條件都要有對應測試 |
+| 測試只有 happy path | 必須包含 edge cases 和 error cases |
+| 設計稿狀態未全部測試 | 有設計稿時，所有狀態都要測試 |
+| 覆蓋率低於目標 | 必須 >= `{team.test_coverage}%` |
+
+**TDD 強制執行時機**：
+
+1. `/project:tdd` - 明確使用 TDD 流程
+2. `/project:start-dev` - 開發流程強制 TDD
+3. `/project:done` - Review 檢查 TDD 合規
+
+---
+
 ## 相關檔案
 
-- `docs/TICKETS.md` - Ticket 追蹤
-- `docs/designs/` - 設計稿目錄
+- `{paths.tickets}` - Ticket 追蹤
+- `{paths.designs}` - 設計稿目錄
 - `.claude/agents/workers/test-automator.md`
-- `.claude/agents/workers/engineer.md`
-- `.claude/agents/experts/ui-designer.md`
+- `.claude/agents/workers/engineer-backend.md`
+- `.claude/agents/workers/engineer-frontend.md`
+- `.claude/templates/test-requirements.md` - 測試規範
+- `.claude/templates/precommit-ci-sync.md` - Precommit/CI 同步
+
+---
+
+**類型**: TDD 開發指令
+**依賴**: `project.yaml` 路徑和測試設定

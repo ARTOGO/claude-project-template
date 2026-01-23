@@ -4,6 +4,19 @@
 
 ---
 
+## 技術棧（從 project.yaml 讀取）
+
+執行前請讀取 `.claude/project.yaml`，確認以下設定：
+
+| 項目 | project.yaml 路徑 | 說明 |
+|------|-------------------|------|
+| 測試覆蓋率 | `team.test_coverage` | 預設 80% |
+| 後端語言 | `tech_stack.backend.language` | 決定測試框架 |
+| 前端測試 | `tech_stack.frontend.testing` | vitest / jest |
+| E2E 測試 | `tech_stack.frontend.e2e` | playwright / cypress |
+
+---
+
 ## E2E 測試強制規範（最重要）
 
 **所有涉及用戶流程的功能，必須撰寫 E2E 測試覆蓋驗收條件。**
@@ -60,11 +73,11 @@ test('新使用者完整 onboarding 流程', async ({ page }) => {
 ### E2E 測試檔案位置
 
 ```text
-frontend/e2e/
+{paths.frontend}/e2e/
 ├── auth.spec.ts           # 認證流程（登入、註冊、OAuth）
-├── onboarding.spec.ts     # Onboarding 流程
-├── organization.spec.ts   # 組織管理
-└── [feature].spec.ts      # 其他功能模組
+├── onboarding.spec.ts     # Onboarding 流程（如適用）
+├── [feature].spec.ts      # 功能模組測試
+└── ...
 ```
 
 ### E2E 測試 FAIL 條件
@@ -81,23 +94,23 @@ frontend/e2e/
    - 缺少 `waitForURL()` 導航驗證
    - 錯誤情境沒有驗證錯誤訊息
 
-### 必須存在的 E2E 測試
+### 必須存在的 E2E 測試（依專案類型調整）
 
-| 功能模組 | 測試檔案 | 關鍵流程 | 狀態 |
+| 功能模組 | 測試檔案 | 關鍵流程 | 優先級 |
 |---------|---------|---------|------|
-| Authentication | `e2e/auth.spec.ts` | 登入、登出、Token refresh | 必須 |
-| Registration | `e2e/auth.spec.ts` | 使用者註冊流程 | 必須 |
-| Onboarding | `e2e/onboarding.spec.ts` | 新使用者 onboarding 完整流程 | 必須 |
-| Organization | `e2e/organization.spec.ts` | 組織建立、管理 | 必須 |
-| Query (Phase 2) | `e2e/query.spec.ts` | 執行查詢、顯示結果 | Phase 2 |
-| Dashboard (Phase 2) | `e2e/dashboard.spec.ts` | 儀表板載入、資料顯示 | Phase 2 |
+| Authentication | `e2e/auth.spec.ts` | 登入、登出、Token refresh | **必須** |
+| Registration | `e2e/auth.spec.ts` | 使用者註冊流程 | **必須** |
+| 核心功能 | `e2e/[feature].spec.ts` | 主要業務流程 | **必須** |
+| 表單提交 | `e2e/forms.spec.ts` | 表單驗證、提交、錯誤處理 | **必須** |
+| 導航流程 | `e2e/navigation.spec.ts` | 頁面切換、權限控制 | 建議 |
 
 ---
 
 ## 單元測試檔案清單
 
-### Backend (Go)
+### Backend（依 `tech_stack.backend.language` 調整）
 
+**Go**:
 | 檔案類型 | 需要測試 | 測試檔案命名 |
 |---------|---------|------------|
 | `service.go` | **必須** | `service_test.go` |
@@ -105,6 +118,21 @@ frontend/e2e/
 | `repository.go` | **必須** | `repository_test.go` |
 | `domain.go` | 如有邏輯 | `domain_test.go` |
 | `middleware.go` | **必須** | `middleware_test.go` |
+
+**Python**:
+| 檔案類型 | 需要測試 | 測試檔案命名 |
+|---------|---------|------------|
+| `service.py` | **必須** | `test_service.py` |
+| `routes.py` / `views.py` | **必須** | `test_routes.py` |
+| `repository.py` | **必須** | `test_repository.py` |
+| `models.py` | 如有邏輯 | `test_models.py` |
+
+**Node.js**:
+| 檔案類型 | 需要測試 | 測試檔案命名 |
+|---------|---------|------------|
+| `*.service.ts` | **必須** | `*.service.test.ts` |
+| `*.controller.ts` | **必須** | `*.controller.test.ts` |
+| `*.repository.ts` | **必須** | `*.repository.test.ts` |
 
 ### Frontend (TypeScript)
 
@@ -131,15 +159,29 @@ frontend/e2e/
 
 ## 測試覆蓋率要求
 
-**目標**: > 80%
+**目標**: > `{team.test_coverage}%`（預設 80%）
 
+### 依語言執行覆蓋率檢查
+
+**Go**:
 ```bash
-# Backend 覆蓋率
-cd backend && go test -coverprofile=coverage.out ./...
+cd {paths.backend} && go test -coverprofile=coverage.out ./...
 go tool cover -func=coverage.out | grep total
+```
 
-# Frontend 覆蓋率
-cd frontend && pnpm run test:coverage
+**Python**:
+```bash
+cd {paths.backend} && pytest --cov --cov-report=term-missing
+```
+
+**Node.js (Backend)**:
+```bash
+cd {paths.backend} && {pm} test:coverage
+```
+
+**Frontend**:
+```bash
+cd {paths.frontend} && {pm} test:coverage
 ```
 
 ---
@@ -154,15 +196,27 @@ cd frontend && pnpm run test:coverage
 
 ### 測試命名規範
 
+**Go**:
 ```go
-// Go: Test<Function>_<Scenario>
+// Test<Function>_<Scenario>
 func TestUserService_Create_Success(t *testing.T) {}
 func TestUserService_Create_DuplicateEmail(t *testing.T) {}
 func TestUserService_Create_InvalidInput(t *testing.T) {}
 ```
 
+**Python**:
+```python
+# test_<function>_<scenario>
+def test_user_service_create_success():
+    pass
+
+def test_user_service_create_duplicate_email():
+    pass
+```
+
+**TypeScript/JavaScript**:
 ```typescript
-// TypeScript: describe + it
+// describe + it
 describe('useAuth', () => {
   it('should return user when authenticated', () => {});
   it('should return null when not authenticated', () => {});
@@ -178,6 +232,15 @@ describe('useAuth', () => {
 
 ---
 
+---
+
+## 相關檔案
+
+- 專案配置：`.claude/project.yaml`
+- Precommit/CI 同步：`.claude/templates/precommit-ci-sync.md`
+- TDD 流程：`.claude/commands/tdd.md`
+- Test Reviewer：`.claude/agents/reviewers/test.md`
+
 ## 使用方式
 
 在其他文件中引用：
@@ -185,9 +248,14 @@ describe('useAuth', () => {
 ```markdown
 ## E2E 測試規範
 
-→ 參考 [test-requirements.md](../.claude/templates/test-requirements.md#e2e-測試強制規範最重要)
+→ 參考 [test-requirements.md](.claude/templates/test-requirements.md#e2e-測試強制規範最重要)
 
 ## 單元測試清單
 
-→ 參考 [test-requirements.md](../.claude/templates/test-requirements.md#單元測試檔案清單)
+→ 參考 [test-requirements.md](.claude/templates/test-requirements.md#單元測試檔案清單)
 ```
+
+---
+
+**類型**: 通用測試規範模板
+**依賴**: `project.yaml` 測試設定

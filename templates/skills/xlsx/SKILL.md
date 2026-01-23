@@ -1,202 +1,308 @@
-# XLSX Skill - Excel 報表處理
+# Excel/XLSX Processing Skill
 
-全面的 Excel 試算表處理能力，包含創建、編輯、分析和公式管理 (.xlsx, .xlsm, .csv, .tsv)。
+> Excel 處理專家。專精試算表資料處理、報表生成、資料分析。
+
+**來源**: 整合自 [anthropics/skills](https://github.com/anthropics/skills) - xlsx
+
+---
+
+## 適用時機
+
+當需要處理 Excel 檔案（讀取資料、生成報表、資料轉換）時，自動載入此 Skill。
+
+---
 
 ## 核心能力
 
-**資料操作**：
-- 創建新試算表，包含公式和格式
-- 讀取和分析試算表資料
-- 修改現有檔案，保留公式
-- 執行資料分析和視覺化
-- 重新計算公式，自動檢測錯誤
+### 資料讀取
 
-**關鍵要求**: "每個 Excel 模型必須零公式錯誤交付"，包含 #REF!, #DIV/0!, #VALUE!, #N/A, 和 #NAME? 錯誤。
+- 讀取 .xlsx/.xls 檔案
+- 多工作表處理
+- 格式識別（日期、數字、公式）
+- 大型檔案串流讀取
 
-## 工具選擇
+### 報表生成
 
-**Pandas** 處理資料分析、批次操作和視覺化，提供強大的資料處理能力。
+- 建立新 Excel 檔案
+- 套用樣式與格式
+- 圖表生成
+- 公式設定
 
-**Openpyxl** 管理複雜格式、公式和 Excel 特定功能，同時保留現有結構。
+### 資料處理
 
-## 財務模型標準
-
-**顏色編碼（業界標準）**：
-- 藍色文字：使用者修改的硬編碼輸入
-- 黑色文字：公式和計算
-- 綠色文字：工作簿內鏈接
-- 紅色文字：外部檔案鏈接
-- 黃色背景：需要注意的關鍵假設
-
-**數值格式**：
-- 年份使用文字格式（"2024" 而非 "2,024"）
-- 貨幣單位在標題中顯示（"營收 ($mm)"）
-- 零值顯示為 "-"
-- 百分比使用 0.0% 格式
-- 負數使用括號，而非減號
-
-## 關鍵公式指引
-
-**永遠使用 Excel 公式，而非硬編碼值**。這確保試算表保持動態：
-
-✓ 正確: `sheet['B10'] = '=SUM(B2:B9)'`
-✗ 錯誤: 在 Python 中計算並硬編碼結果
-
-**假設放置**: 將所有變數單獨儲存；在公式中引用它們，而非嵌入常數。
-
-## 工作流程
-
-1. 選擇適當工具（pandas 或 openpyxl）
-2. 創建或載入工作簿
-3. 添加/修改資料、公式、格式
-4. 儲存檔案
-5. **強制重新計算**: 執行 `python recalc.py output.xlsx`
-6. 驗證無錯誤；修復任何發現的問題
-
-## 公式驗證檢查清單
-
-- 測試 2-3 個樣本引用的準確性
-- 確認列映射（例如，列 64 = BL）
-- 記住 Excel 使用 1-based 索引
-- 檢查除零風險
-- 驗證所有儲存格引用存在
-- 使用正確的跨工作表語法（Sheet1!A1）
-
-## 程式碼標準
-
-撰寫簡潔的 Python 程式碼，無需不必要的註解。對於 Excel 檔案本身，為複雜公式添加註解，並使用特定引用（公司文件、Bloomberg、FactSet 等）記錄硬編碼值的來源。
+- 資料清洗
+- 資料轉換
+- 資料驗證
+- 批次處理
 
 ---
 
-## InsightHub Excel 報表指南
+## 技術棧支援
 
-### 報表樣式標準
+### Node.js / TypeScript
 
-```python
-# InsightHub 樣式配置
-HEADER_FILL = PatternFill(start_color='4A90E2', end_color='4A90E2', fill_type='solid')
-HEADER_FONT = Font(bold=True, color='FFFFFF')
-NUMBER_FORMAT = '#,##0'
-DATE_FORMAT = 'YYYY-MM-DD'
-NULL_VALUE = '-'
+| 套件 | 用途 |
+|------|------|
+| `xlsx` | 讀寫 Excel（輕量） |
+| `exceljs` | 完整 Excel 操作（樣式、圖表） |
+| `xlsx-stream-reader` | 大型檔案串流讀取 |
+
+### Python
+
+| 套件 | 用途 |
+|------|------|
+| `openpyxl` | 讀寫 .xlsx |
+| `pandas` | 資料處理與分析 |
+| `xlrd` | 讀取 .xls |
+| `xlsxwriter` | 高效能寫入 |
+
+---
+
+## 使用模式
+
+### Node.js：讀取 Excel
+
+```typescript
+import ExcelJS from 'exceljs';
+
+async function readExcel(filePath: string) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  
+  const data: Record<string, any[]> = {};
+  
+  workbook.eachSheet((sheet, sheetId) => {
+    const rows: any[] = [];
+    const headers: string[] = [];
+    
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) {
+        // 第一行為標題
+        row.eachCell((cell) => {
+          headers.push(String(cell.value));
+        });
+      } else {
+        const rowData: Record<string, any> = {};
+        row.eachCell((cell, colNumber) => {
+          rowData[headers[colNumber - 1]] = cell.value;
+        });
+        rows.push(rowData);
+      }
+    });
+    
+    data[sheet.name] = rows;
+  });
+  
+  return data;
+}
 ```
 
-### 查詢結果轉換範例
+### Node.js：生成報表
+
+```typescript
+import ExcelJS from 'exceljs';
+
+async function generateReport(data: any[], outputPath: string) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Report');
+  
+  // 設定標題
+  sheet.columns = [
+    { header: 'ID', key: 'id', width: 10 },
+    { header: 'Name', key: 'name', width: 30 },
+    { header: 'Value', key: 'value', width: 15 },
+    { header: 'Date', key: 'date', width: 15 }
+  ];
+  
+  // 標題樣式
+  sheet.getRow(1).font = { bold: true };
+  sheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF4472C4' }
+  };
+  
+  // 新增資料
+  data.forEach(item => {
+    sheet.addRow(item);
+  });
+  
+  // 自動篩選
+  sheet.autoFilter = {
+    from: 'A1',
+    to: `D${data.length + 1}`
+  };
+  
+  await workbook.xlsx.writeFile(outputPath);
+}
+```
+
+### Python：使用 Pandas 處理
 
 ```python
 import pandas as pd
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
 
-def export_query_result_to_excel(data: dict, output_path: str):
-    """將查詢結果轉換為 InsightHub 格式的 Excel"""
+def read_and_process(file_path: str) -> pd.DataFrame:
+    """讀取並處理 Excel 資料"""
+    # 讀取 Excel
+    df = pd.read_excel(file_path, sheet_name='Sheet1')
+    
+    # 資料清洗
+    df = df.dropna()  # 移除空值
+    df = df.drop_duplicates()  # 移除重複
+    
+    # 資料轉換
+    df['date'] = pd.to_datetime(df['date'])
+    df['value'] = df['value'].astype(float)
+    
+    return df
 
-    # 使用 pandas 處理資料
-    df = pd.DataFrame(data['rows'], columns=data['columns'])
-
-    # 創建工作簿
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "查詢結果"
-
-    # 添加標題行
-    for col_num, column in enumerate(df.columns, 1):
-        cell = ws.cell(row=1, column=col_num)
-        cell.value = column
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.alignment = Alignment(horizontal='center')
-
-    # 添加資料
-    for row_num, row_data in enumerate(df.values, 2):
-        for col_num, value in enumerate(row_data, 1):
-            cell = ws.cell(row=row_num, column=col_num)
-            cell.value = value if value is not None else NULL_VALUE
-
-            # 數值格式化
-            if isinstance(value, (int, float)):
-                cell.number_format = NUMBER_FORMAT
-
-    # 調整列寬
-    for column in ws.columns:
-        max_length = max(len(str(cell.value)) for cell in column)
-        ws.column_dimensions[column[0].column_letter].width = min(max_length + 2, 50)
-
-    # 儲存
-    wb.save(output_path)
-
-    # 重新計算公式（如果有）
-    import subprocess
-    subprocess.run(['python', '.claude/skills/xlsx/recalc.py', output_path])
+def export_to_excel(df: pd.DataFrame, output_path: str):
+    """匯出到 Excel"""
+    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Data', index=False)
+        
+        # 新增摘要工作表
+        summary = df.describe()
+        summary.to_excel(writer, sheet_name='Summary')
 ```
 
-### 報表模板
-
-#### 1. 查詢結果報表
-
-包含：
-- 查詢資訊（連接、執行時間）
-- 資料工作表
-- 統計摘要工作表
-
-#### 2. Dashboard 資料導出
-
-包含：
-- 多個工作表（按圖表分類）
-- 圖表資料
-- 計算欄位
-
-#### 3. 審計日誌報表
-
-包含：
-- 時間戳記
-- 用戶操作
-- 變更記錄
-
-### 最佳實踐
-
-1. **使用公式**: 所有計算使用 Excel 公式
-2. **資料驗證**: 使用 openpyxl 的資料驗證功能
-3. **條件格式**: 高亮異常值
-4. **凍結窗格**: 凍結標題行
-5. **自動篩選**: 啟用篩選功能
-
-### 錯誤處理
+### Python：進階報表
 
 ```python
-def safe_export(data, output_path):
-    try:
-        export_query_result_to_excel(data, output_path)
+from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
+from openpyxl.styles import Font, PatternFill
 
-        # 驗證檔案
-        import openpyxl
-        wb = openpyxl.load_workbook(output_path)
-
-        # 檢查公式錯誤
-        for sheet in wb.worksheets:
-            for row in sheet.iter_rows():
-                for cell in row:
-                    if cell.value and isinstance(cell.value, str):
-                        if any(err in cell.value for err in ['#REF!', '#DIV/0!', '#VALUE!', '#N/A', '#NAME?']):
-                            raise ValueError(f"公式錯誤: {cell.coordinate} = {cell.value}")
-
-        return True, output_path
-    except Exception as e:
-        return False, str(e)
+def create_chart_report(data: list, output_path: str):
+    """建立帶圖表的報表"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sales Report"
+    
+    # 標題樣式
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="4472C4")
+    
+    # 寫入資料
+    headers = ['Month', 'Sales', 'Target']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+    
+    for row_idx, row_data in enumerate(data, 2):
+        for col_idx, value in enumerate(row_data, 1):
+            ws.cell(row=row_idx, column=col_idx, value=value)
+    
+    # 建立圖表
+    chart = BarChart()
+    chart.title = "Monthly Sales vs Target"
+    chart.x_axis.title = "Month"
+    chart.y_axis.title = "Amount"
+    
+    data_ref = Reference(ws, min_col=2, max_col=3, 
+                         min_row=1, max_row=len(data) + 1)
+    categories = Reference(ws, min_col=1, 
+                          min_row=2, max_row=len(data) + 1)
+    
+    chart.add_data(data_ref, titles_from_data=True)
+    chart.set_categories(categories)
+    
+    ws.add_chart(chart, "E2")
+    
+    wb.save(output_path)
 ```
-
-## 相關檔案
-
-- Python 重算腳本: `.claude/skills/xlsx/recalc.py`
-- Command: `.claude/commands/export-excel.md` (待創建)
-
-## 相關 Tickets
-
-- TICKET-037: 查詢結果導出功能
-- TICKET-035: Dashboard 報表生成
 
 ---
 
-**Skill 來源**: Anthropic Skills - `xlsx`
-**整合日期**: 2026-01-20
-**維護者**: InsightHub Team
+## 最佳實踐
+
+### 1. 大型檔案處理
+
+```typescript
+// 串流讀取大型 Excel
+import { Readable } from 'stream';
+import XlsxStreamReader from 'xlsx-stream-reader';
+
+async function streamReadLargeExcel(filePath: string) {
+  return new Promise((resolve, reject) => {
+    const rows: any[] = [];
+    const workBookReader = new XlsxStreamReader();
+    
+    workBookReader.on('worksheet', (workSheetReader) => {
+      workSheetReader.on('row', (row) => {
+        rows.push(row.values);
+      });
+      workSheetReader.process();
+    });
+    
+    workBookReader.on('end', () => resolve(rows));
+    workBookReader.on('error', reject);
+    
+    fs.createReadStream(filePath).pipe(workBookReader);
+  });
+}
+```
+
+### 2. 資料驗證
+
+```typescript
+function validateExcelData(data: any[]) {
+  const errors: string[] = [];
+  
+  data.forEach((row, index) => {
+    if (!row.id) {
+      errors.push(`Row ${index + 1}: Missing ID`);
+    }
+    if (row.value && isNaN(Number(row.value))) {
+      errors.push(`Row ${index + 1}: Invalid value format`);
+    }
+  });
+  
+  return errors;
+}
+```
+
+### 3. 公式處理
+
+```typescript
+// 設定公式而非靜態值
+sheet.getCell('E2').value = { formula: 'SUM(B2:D2)' };
+sheet.getCell('E3').value = { formula: 'AVERAGE(B2:D10)' };
+```
+
+---
+
+## 與專案整合
+
+### 資料匯入/匯出工作流程
+
+```text
+上傳 Excel → 驗證格式 → 資料處理 → 儲存到資料庫
+                                    ↓
+                              生成處理報告
+```
+
+### 配置範例
+
+```yaml
+# project.yaml
+excel:
+  max_file_size: 50MB
+  allowed_extensions: [.xlsx, .xls]
+  date_format: YYYY-MM-DD
+  number_format: "#,##0.00"
+```
+
+---
+
+## 相關檔案
+
+- PDF 處理：`.claude/skills/pdf/SKILL.md`
+- 文件協作：`.claude/skills/doc-coauthoring/SKILL.md`
+
+---
+
+**類型**: 文件處理 Skill
+**來源**: [anthropics/skills](https://github.com/anthropics/skills) - xlsx

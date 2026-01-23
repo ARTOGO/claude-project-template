@@ -1,342 +1,382 @@
-# Doc Co-Authoring Skill - 文件協作
+# Document Co-authoring Skill
 
-結構化協作文件創建指南，透過三個階段：情境收集、精煉與結構、讀者測試。
+> 文件協作專家。專精協同編輯、版本控制、內容審查與文件工作流程。
 
-## 概述
-
-本 skill 引導使用者透過結構化的協作文件創建，分為三個階段：情境收集、精煉與結構、讀者測試。
-
-## 觸發條件
-
-當使用者提及撰寫文件任務時啟動，例如「寫一份文件」、「草擬提案」，或創建特定文件類型（PRD、設計文件、決策文件、RFC）。
-
-## 階段 1: 情境收集
-
-**目的**：彌合使用者和 Claude 之間的知識差距。
-
-初始問題涵蓋文件類型、受眾、期望影響、格式要求和限制。使用者可以提供資訊作為非結構化轉儲、透過團隊頻道或鏈接文件。
-
-關鍵方法：「詢問是否應該搜尋已連接的工具以了解更多」，然後在訪問外部來源之前提出 5-10 個澄清問題，以驗證理解。當問題揭示對邊緣情況和權衡的理解時退出。
-
-## 階段 2: 精煉與結構
-
-**目的**：透過腦力激盪和精煉逐節構建。
-
-每個章節的流程：
-1. 提出 5-10 個澄清問題
-2. 腦力激盪 5-20 個選項
-3. 使用者選擇保留/移除/合併的內容
-4. 草擬章節
-5. 根據反饋迭代精煉
-
-工作流程建議「從最多未知數的章節開始」，通常是核心提案或技術方法。接近完成時，審查整個文件的流暢性、冗餘和連貫性。
-
-## 階段 3: 讀者測試
-
-**目的**：驗證文件對沒有作者背景的新讀者有效。
-
-生成 5-10 個實際的讀者問題，然後用新的 Claude 實例測試。檢查讀者 Claude 是否正確回答，並識別模糊或錯誤假設。對有問題的章節迭代，直到出現一致的正確答案。
-
-## 最終審查
-
-使用者執行最終閱讀，在完成前驗證準確性和影響達成。
+**來源**: 整合自 [anthropics/skills](https://github.com/anthropics/skills) - doc-coauthoring
 
 ---
 
-## InsightHub 文件協作指南
+## 適用時機
 
-### 文件類型模板
+當需要進行文件協作、內容審查、版本管理時，自動載入此 Skill。
 
-#### 1. PRD (Product Requirement Document)
+---
 
-```markdown
-# [功能名稱] - PRD
+## 核心能力
 
-## 概述
-- 功能描述
-- 目標用戶
-- 商業價值
+### 協同編輯
 
-## 背景
-- 問題陳述
-- 當前解決方案的限制
-- 競品分析
+- 即時協作支援
+- 衝突解決策略
+- 變更追蹤
+- 評論與回覆
 
-## 需求
+### 版本控制
 
-### 功能需求
-1. [功能 1]
-   - 描述
-   - 驗收條件
-   - 優先級
+- 版本歷史追蹤
+- 差異比較
+- 版本還原
+- 分支合併
 
-### 非功能需求
-- 效能要求
-- 安全性要求
-- 可用性要求
+### 內容審查
 
-## 技術方案
-- 架構概述
-- 技術棧
-- 資料模型
+- 審查工作流程
+- 批准/拒絕變更
+- 建議修改
+- 品質檢查
 
-## Tickets
-### TICKET-XXX: [功能名稱]
+### 文件格式
 
-**描述**: ...
+- Markdown
+- Rich Text
+- HTML
+- 結構化文件（JSON/YAML）
 
-**Backend 驗收條件**:
-- [ ] 條件 1
-- [ ] 條件 2
+---
 
-**Frontend 驗收條件**:
-- [ ] 條件 1
-- [ ] 條件 2
+## 協作模式
 
-**可部署產出**: ...
+### 1. 即時協作
 
-## 時程規劃
-- Milestone 1: ...
-- Milestone 2: ...
+適用於需要多人同時編輯的場景：
 
-## 風險與依賴
-- 風險 1: ...
-- 依賴 1: ...
-```
-
-#### 2. 技術設計文件
-
-```markdown
-# [系統/功能] 技術設計
-
-## 系統概述
-- 目的
-- 範圍
-- 術語表
-
-## 架構設計
-
-### Clean Architecture 層級
 ```text
-Domain → Application → Interface → External
+┌─────────────────────────────────────────────────────────────┐
+│                    Real-time Collaboration                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  User A ─────┐                                              │
+│              │    ┌──────────────┐    ┌───────────────┐   │
+│  User B ─────┼───→│   Document   │───→│   Broadcast   │   │
+│              │    │    Server    │    │   Changes     │   │
+│  User C ─────┘    └──────────────┘    └───────────────┘   │
+│                          │                                  │
+│                          ↓                                  │
+│                   ┌──────────────┐                         │
+│                   │   Conflict   │                         │
+│                   │  Resolution  │                         │
+│                   └──────────────┘                         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 元件圖
-[架構圖]
+### 2. 異步審查
 
-### 資料流
-[資料流圖]
+適用於需要審核批准的流程：
 
-## 詳細設計
-
-### Backend
-- Service 層設計
-- Repository 介面
-- API 端點
-
-### Frontend
-- Component 架構
-- State 管理
-- API 整合
-
-## 資料模型
-
-### PostgreSQL Schema
-```sql
-CREATE TABLE ...
+```text
+作者提交 → 審查者審核 → 批准/要求修改 → 合併
+    │           │              │
+    └───────────┴──────────────┘
+           可能多次循環
 ```
 
-### GORM Model
-```go
-type Model struct { ... }
+### 3. 版本分支
+
+適用於需要平行開發的場景：
+
+```text
+main ────●────●────●────●────●
+          \         /
+feature    ○───○───○
 ```
 
-## API 規範
+---
 
-### OpenAPI 定義
-```yaml
-paths:
-  /api/v1/xxx:
-    post:
-      ...
-```
+## 使用模式
 
-## 安全性考量
-- 認證/授權
-- 資料加密
-- SQL Injection 防護
-
-## 測試策略
-- 單元測試
-- 整合測試
-- E2E 測試
-
-## 部署計劃
-- 環境配置
-- Migration 步驟
-- Rollback 策略
-```
-
-#### 3. API 文件
+### Markdown 協作
 
 ```markdown
-# [服務名稱] API 文件
+<!-- 變更標記 -->
+~~刪除的內容~~ → 新增的內容
 
-## 認證
-- 方法: JWT Bearer Token
-- 取得 Token: POST /api/v1/auth/login
+<!-- 評論 -->
+這是一段文字 <!-- @reviewer: 這裡需要更多說明 -->
 
-## 端點列表
+<!-- 建議修改 -->
+> [!SUGGESTION]
+> 建議將這段改為更清楚的說明
+```
 
-### 查詢相關
+### 變更追蹤格式
 
-#### POST /api/v1/queries/execute
+```typescript
+interface DocumentChange {
+  id: string;
+  author: string;
+  timestamp: Date;
+  type: 'insert' | 'delete' | 'modify';
+  position: {
+    start: number;
+    end: number;
+  };
+  oldContent?: string;
+  newContent: string;
+  status: 'pending' | 'approved' | 'rejected';
+  comments: Comment[];
+}
 
-執行自然語言查詢。
-
-**請求**:
-```json
-{
-  "connection_id": "uuid",
-  "query": "string"
+interface Comment {
+  id: string;
+  author: string;
+  content: string;
+  timestamp: Date;
+  resolved: boolean;
 }
 ```
 
-**回應**:
-```json
-{
-  "query_id": "uuid",
-  "columns": ["col1", "col2"],
-  "rows": [[val1, val2]],
-  "execution_time": 0.5
+### 衝突解決
+
+```typescript
+interface ConflictResolution {
+  documentId: string;
+  conflictId: string;
+  resolution: 'accept_theirs' | 'accept_mine' | 'merge_manual';
+  mergedContent?: string;
+  resolvedBy: string;
+  resolvedAt: Date;
 }
-```
 
-**錯誤碼**:
-- 400: 無效查詢
-- 401: 未授權
-- 403: 權限不足
-- 500: 執行錯誤
-
-## 錯誤處理
-
-所有錯誤回應格式：
-```json
-{
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "詳細訊息",
-    "details": {}
+async function resolveConflict(
+  conflict: DocumentConflict,
+  strategy: 'auto' | 'manual'
+): Promise<ResolvedDocument> {
+  if (strategy === 'auto') {
+    // 自動合併（適用於不重疊的變更）
+    return autoMerge(conflict);
+  } else {
+    // 手動解決（需要人工介入）
+    return presentConflictUI(conflict);
   }
 }
 ```
 
-## 速率限制
-- 每分鐘 60 次請求
-- Header: X-RateLimit-Remaining
+---
 
-## 版本控制
-- 當前版本: v1
-- 棄用政策: 提前 3 個月通知
+## 審查工作流程
+
+### 標準審查流程
+
+```typescript
+enum ReviewStatus {
+  DRAFT = 'draft',
+  PENDING_REVIEW = 'pending_review',
+  CHANGES_REQUESTED = 'changes_requested',
+  APPROVED = 'approved',
+  MERGED = 'merged'
+}
+
+interface ReviewWorkflow {
+  document: Document;
+  author: User;
+  reviewers: User[];
+  status: ReviewStatus;
+  comments: ReviewComment[];
+  approvals: Approval[];
+  requiredApprovals: number;
+}
+
+async function submitForReview(doc: Document, reviewers: User[]) {
+  return {
+    ...doc,
+    status: ReviewStatus.PENDING_REVIEW,
+    reviewers,
+    submittedAt: new Date()
+  };
+}
+
+async function approveDocument(review: ReviewWorkflow, reviewer: User) {
+  const approvals = [...review.approvals, { reviewer, timestamp: new Date() }];
+  
+  if (approvals.length >= review.requiredApprovals) {
+    return { ...review, status: ReviewStatus.APPROVED, approvals };
+  }
+  
+  return { ...review, approvals };
+}
 ```
 
-### 階段 1 實施：情境收集問題範本
-
-針對 InsightHub 文件的標準問題：
-
-**通用問題**:
-1. 文件類型：PRD / 技術設計 / API 文件 / 其他？
-2. 目標受眾：開發團隊 / PM / 客戶 / 全部？
-3. 技術深度：概念性 / 詳細實作 / 兩者皆有？
-4. 相關 Ticket：是否有對應的 TICKET-XXX？
-5. 依賴其他文件：是否參考現有 PRD 或設計文件？
-
-**PRD 特定問題**:
-6. 功能範圍：單一功能 / 完整模組？
-7. 驗收條件：已知 / 需要定義？
-8. 優先級：P0 (MVP) / P1 (重要) / P2 (Nice to have)？
-
-**技術設計特定問題**:
-9. 架構層級：需要涵蓋哪些層（Domain / Application / Interface）？
-10. Clean Architecture 要求：是否需要詳細的依賴規則說明？
-11. 測試策略：需要包含測試計劃嗎？
-
-### 階段 2 實施：章節腦力激盪
-
-**範例：PRD 的「技術方案」章節**
-
-澄清問題：
-1. 後端使用哪些現有 service？
-2. 前端需要新的 component 嗎？
-3. 資料庫 schema 變更多大？
-4. 是否需要新的 API 端點？
-5. 與現有功能的整合點在哪？
-
-腦力激盪選項：
-1. 使用現有 auth service + 新增 query service
-2. 擴展現有 connection service
-3. 創建新的 analytics service
-4. ...（5-20 個選項）
-
-### 階段 3 實施：讀者測試
-
-**測試問題範例**（針對 PRD）：
-
-1. 這個功能解決什麼問題？
-2. 主要用戶流程是什麼？
-3. 驗收條件有哪些？
-4. 技術上有什麼風險？
-5. 與現有系統如何整合？
-
-**評估標準**：
-- ✅ 讀者 Claude 能正確回答所有問題
-- ❌ 讀者 Claude 誤解或無法回答 → 修正該章節
-
-### InsightHub 特定模板
-
-在 `.claude/skills/doc-coauthoring/templates/` 目錄下：
-
-```text
-templates/
-├── prd-template.md           # PRD 模板
-├── tech-design-template.md   # 技術設計模板
-├── api-doc-template.md       # API 文件模板
-└── decision-doc-template.md  # 決策文件模板
-```
-
-## 整合到 /project:docs
-
-增強 `.claude/commands/docs.md` 以使用本 skill：
+### 審查檢查清單
 
 ```markdown
-# Documentation Command (Enhanced)
+## 文件審查檢查清單
 
-## 執行流程
+### 內容品質
+- [ ] 內容完整且準確
+- [ ] 邏輯清晰，結構合理
+- [ ] 無錯字或文法錯誤
+- [ ] 術語使用一致
 
-### Phase 1: 文件類型識別
-- 識別文件類型（PRD / 技術設計 / API）
-- 載入對應模板
+### 格式規範
+- [ ] 遵循專案文件格式
+- [ ] 標題層級正確
+- [ ] 程式碼區塊有語法標記
+- [ ] 圖片有替代文字
 
-### Phase 2: 使用 Doc Co-Authoring Skill
-參考: `.claude/skills/doc-coauthoring/SKILL.md`
-
-1. **情境收集**：使用 InsightHub 特定問題
-2. **精煉與結構**：逐章節編寫
-3. **讀者測試**：驗證清晰度
-
-### Phase 3: 儲存與連結
-- 儲存到 `docs/` 目錄
-- 更新 TICKETS.md 鏈接
-- 通知相關團隊成員
+### 技術準確性
+- [ ] 程式碼範例可執行
+- [ ] API 說明準確
+- [ ] 版本資訊正確
+- [ ] 連結有效
 ```
-
-## 相關檔案
-
-- Command: `.claude/commands/docs.md`
-- Templates: `.claude/skills/doc-coauthoring/templates/`
 
 ---
 
-**Skill 來源**: Anthropic Skills - `doc-coauthoring`
-**整合日期**: 2026-01-20
-**維護者**: InsightHub Team
+## 版本比較
+
+### 差異顯示
+
+```typescript
+interface DiffResult {
+  additions: number;
+  deletions: number;
+  changes: DiffChange[];
+}
+
+interface DiffChange {
+  type: 'add' | 'delete' | 'modify';
+  lineNumber: number;
+  oldLine?: string;
+  newLine?: string;
+}
+
+function generateDiff(oldContent: string, newContent: string): DiffResult {
+  const oldLines = oldContent.split('\n');
+  const newLines = newContent.split('\n');
+  
+  // 使用 Myers diff 算法
+  return computeDiff(oldLines, newLines);
+}
+```
+
+### 視覺化差異
+
+```text
+  1    1   # Document Title
+  2    2   
+- 3      - This is the old content.
+     3   + This is the updated content with improvements.
+  4    4   
+  5    5   ## Section 2
+- 6      - Outdated information here.
+     6   + Current and accurate information.
+     7   + Additional new paragraph added.
+```
+
+---
+
+## 與專案整合
+
+### 配置範例
+
+```yaml
+# project.yaml
+collaboration:
+  review:
+    required_approvals: 2
+    auto_merge: false
+    protect_main: true
+  
+  permissions:
+    viewer: [read]
+    editor: [read, edit, comment]
+    reviewer: [read, edit, comment, approve]
+    admin: [read, edit, comment, approve, merge, delete]
+```
+
+### 工作流程自動化
+
+```typescript
+// 自動化審查提醒
+async function sendReviewReminder(review: ReviewWorkflow) {
+  const pendingReviewers = review.reviewers.filter(
+    r => !review.approvals.find(a => a.reviewer.id === r.id)
+  );
+  
+  for (const reviewer of pendingReviewers) {
+    await notify(reviewer, {
+      type: 'review_reminder',
+      document: review.document,
+      deadline: review.deadline
+    });
+  }
+}
+```
+
+---
+
+## 最佳實踐
+
+### 1. 原子性變更
+
+每次變更應該是獨立且完整的：
+
+```markdown
+✅ 好的變更：
+- 修正單一章節的錯誤
+- 新增完整的新功能說明
+
+❌ 避免的變更：
+- 同時修改多個不相關的部分
+- 不完整的變更（需要後續補充）
+```
+
+### 2. 清晰的變更說明
+
+```markdown
+## 變更說明
+
+### 變更類型
+- [ ] 內容新增
+- [x] 內容修正
+- [ ] 格式調整
+- [ ] 錯誤修復
+
+### 變更描述
+更新 API 端點說明，修正回應格式範例。
+
+### 相關議題
+- Fixes #123
+- Related to #456
+```
+
+### 3. 有效的審查回饋
+
+```markdown
+## 審查意見
+
+### 必要修改
+1. 第 45 行：API 回應範例缺少 `status` 欄位
+2. 第 78 行：錯誤處理說明不完整
+
+### 建議改進
+1. 考慮新增更多使用範例
+2. 建議加入效能注意事項
+
+### 整體評價
+內容架構清晰，技術說明準確。完成上述修改後可批准。
+```
+
+---
+
+## 相關檔案
+
+- PDF 處理：`.claude/skills/pdf/SKILL.md`
+- Excel 處理：`.claude/skills/xlsx/SKILL.md`
+- 品質審查：`.claude/agents/reviewers/quality.md`
+
+---
+
+**類型**: 文件協作 Skill
+**來源**: [anthropics/skills](https://github.com/anthropics/skills) - doc-coauthoring

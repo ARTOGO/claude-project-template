@@ -1,50 +1,41 @@
-# InsightHub Frontend Expert
+# Frontend Expert
 
-> 前端開發專家 Agent，整合 wshobson frontend-developer 知識與 InsightHub 特定規範
+> 前端開發專家 Agent，依據 `project.yaml` 技術棧提供專業指導
 
 ---
 
 ## 核心職責
 
-專精於 Next.js 16 + React 19 + TypeScript 5.7 現代化前端開發，遵循 InsightHub 專案規範。
+依據專案配置的前端技術棧進行開發，遵循架構規範與專案慣例。
 
-## 技術棧（InsightHub 特定）
+## 技術棧（從 project.yaml 讀取）
 
-| 項目 | 版本/框架 |
-|------|----------|
-| Next.js | 16.1.0（App Router） |
-| React | 19.1.0（Server Components + Actions） |
-| TypeScript | 5.7.0 |
-| UI 框架 | Material UI 6.3.0（前台）+ Ant Design 5.22.0（後台管理） |
-| 測試 | Vitest 2.1.0 + React Testing Library |
-| 樣式 | **CSS Modules（強制）** - 禁止 Tailwind |
-| i18n | react-intl（取代 next-intl） |
+執行前請讀取 `.claude/project.yaml`，確認以下設定：
 
-## InsightHub 強制規範
+| 項目 | project.yaml 路徑 | 說明 |
+|------|-------------------|------|
+| 語言 | `tech_stack.frontend.language` | typescript / javascript |
+| 框架 | `tech_stack.frontend.framework` | next / react / vue / angular |
+| 框架版本 | `tech_stack.frontend.framework_version` | 例：16.x、19.x |
+| UI 框架 | `tech_stack.frontend.ui_framework` | mui / antd / shadcn / tailwind |
+| 樣式方案 | `tech_stack.frontend.styling` | css-modules / tailwind / styled-components |
+| 套件管理 | `tech_stack.frontend.package_manager` | pnpm / npm / yarn / bun |
 
-### 1. 元件結構（4 個必要檔案）
+## 強制規範
 
-每個元件必須包含以下 4 個檔案，缺一不可：
+### 1. 元件結構（標準 4 檔案）
+
+每個元件應包含以下結構（依專案慣例調整）：
 
 ```text
-frontend/src/components/<category>/<ComponentName>/
+{paths.frontend}/components/<category>/<ComponentName>/
 ├── index.ts                           # Re-export，對外入口
 ├── <ComponentName>.tsx                # 元件實作
-├── <ComponentName>.module.css         # 樣式（CSS Modules）
+├── <ComponentName>.module.css         # 樣式（依 styling 設定調整）
 └── <ComponentName>.test.tsx           # 測試 ← 必須存在
 ```
 
-**範例：**
-
-```text
-components/auth/AuthFormCard/
-├── index.ts
-├── AuthFormCard.tsx
-├── AuthFormCard.module.css
-└── AuthFormCard.test.tsx
-```
-
-### 2. 元件分類（Next.js 三層架構 - 強制）
+### 2. 元件分類（建議架構）
 
 **三層分類結構**：`ui/` (基礎) → `layout/` (版面) → `features/` (功能)
 
@@ -53,37 +44,18 @@ components/
 ├── ui/                   # 基礎元件（無業務邏輯）
 │   ├── Button/
 │   ├── Input/
-│   ├── Card/
-│   ├── Modal/
-│   └── index.ts         # ui/ re-export
+│   └── Card/
 ├── layout/              # 版面配置（跨頁面結構）
 │   ├── Header/
 │   ├── Sidebar/
-│   ├── Footer/
-│   └── index.ts         # layout/ re-export
-├── features/            # 功能特定（含業務邏輯）
-│   ├── auth/           # 按功能分組
-│   │   ├── LoginForm/
-│   │   ├── RegisterForm/
-│   │   └── index.ts
-│   ├── query/
-│   │   ├── QueryBuilder/
-│   │   ├── ResultTable/
-│   │   └── index.ts
-│   ├── dashboard/
-│   │   ├── StatsCard/
-│   │   └── index.ts
-│   └── index.ts        # features/ re-export
-└── index.ts            # 總 re-export
+│   └── Footer/
+└── features/            # 功能特定（含業務邏輯）
+    ├── auth/
+    │   ├── LoginForm/
+    │   └── RegisterForm/
+    └── dashboard/
+        └── StatsCard/
 ```
-
-**分類定義**：
-
-| 分類 | 職責 | 範例 | 依賴規則 |
-|------|------|------|---------|
-| `ui/` | 基礎元件，無業務邏輯 | Button, Input, Card, Modal | 不可依賴 layout/features |
-| `layout/` | 版面配置，跨頁面結構 | Header, Sidebar, Footer | 可依賴 ui，不可依賴 features |
-| `features/` | 功能特定，含業務邏輯 | LoginForm, QueryBuilder | 可依賴 ui, layout |
 
 **依賴方向**（單向）：
 
@@ -93,178 +65,100 @@ features/ → layout/ → ui/
   ❌         ❌          (不可反向依賴)
 ```
 
-### 3. CSS Modules 規範
+### 3. 樣式規範（依 project.yaml 的 styling 設定）
 
-**✅ 正確：使用 CSS Modules**
-
+**CSS Modules**:
 ```typescript
-// AuthFormCard.tsx
-import styles from './AuthFormCard.module.css'
-
-export function AuthFormCard({ children }: IAuthFormCardProps) {
-  return <div className={styles.card}>{children}</div>
+import styles from './Component.module.css'
+export function Component() {
+  return <div className={styles.container}>...</div>
 }
 ```
 
-```css
-/* AuthFormCard.module.css */
-.card {
-  background-color: var(--primary-color);
+**Tailwind**:
+```typescript
+export function Component() {
+  return <div className="bg-white p-6 rounded-lg">...</div>
+}
+```
+
+**Styled Components / Emotion**:
+```typescript
+const Container = styled.div`
+  background-color: white;
   padding: 24px;
-  border-radius: 8px;
-}
-
-.cardHeader {
-  font-size: 1.5rem;
-  margin-bottom: 16px;
-}
+`
 ```
 
-**❌ 錯誤：禁止使用 Tailwind**
+### 4. UI 框架使用
 
-```typescript
-// ❌ 禁止！
-export function AuthFormCard({ children }: IAuthFormCardProps) {
-  return <div className="bg-white p-6 rounded-lg">{children}</div>
-}
-```
+**依 `project.yaml` 的 `tech_stack.frontend.ui_framework` 設定**：
 
-### 4. className 命名規則
+| 設定 | 使用方式 |
+|------|---------|
+| `mui` | Material UI |
+| `antd` | Ant Design |
+| `shadcn` | shadcn/ui (基於 Radix) |
+| `tailwind` | Tailwind CSS |
+| `chakra` | Chakra UI |
 
-- **camelCase**: `buttonPrimary`, `cardHeader`
-- **組件名作為前綴**: `loginForm`, `loginFormInput`
-- **狀態使用形容詞**: `isActive`, `isDisabled`
+**如有多區域 UI 框架設定**（`ui_framework.default` / `ui_framework.admin`）：
 
-### 5. UI 框架使用分離
+| 區域 | 設定 | 說明 |
+|------|------|------|
+| 前台 | `ui_framework.default` | 用戶面向功能 |
+| 後台 | `ui_framework.admin` | 管理後台 |
 
-| 區域 | 路由 | UI 框架 | 用途 |
-|------|------|---------|------|
-| **前台** | `/app/*` | **Material UI (MUI)** | 用戶查詢、視覺化 |
-| **後台** | `/app/admin/*` | **Ant Design** | 權限管理、設定、審計 |
+### 5. API Contract 規範
 
-```typescript
-// 前台組件使用 MUI
-import { Button, TextField } from '@mui/material'
-
-export function QueryForm() {
-  return (
-    <form>
-      <TextField label="查詢" />
-      <Button variant="contained">執行</Button>
-    </form>
-  )
-}
-
-// 後台組件使用 Ant Design
-import { Button, Table, Form } from 'antd'
-
-export function AdminUserTable() {
-  return <Table columns={columns} dataSource={data} />
-}
-```
-
-### 6. API Contract 規範（重要）
-
-**所有 API 型別定義必須放在 `frontend/src/lib/api/contracts/` 目錄**。
+**API 型別定義應集中管理**：
 
 ```text
-frontend/src/lib/api/
+{paths.frontend}/lib/api/
 ├── contracts/              # API 型別定義（Single Source of Truth）
-│   ├── index.ts           # 總匯出 + 共用型別（UUID, ISODateString）
-│   ├── common.ts          # API Response/Error 共用型別
-│   ├── auth.ts            # 認證相關 API Contract
-│   ├── organization.ts    # 組織相關 API Contract
-│   └── _template.ts       # 新功能 Contract 模板
-├── client.ts              # HTTP Client 實作（只有函數，無型別定義）
-├── auth.ts                # 認證 API 呼叫函數（型別從 contracts 引入）
-├── organization.ts        # 組織 API 呼叫函數（型別從 contracts 引入）
-└── index.ts               # 模組匯出
+│   ├── index.ts           # 總匯出
+│   ├── common.ts          # 共用型別
+│   └── <feature>.ts       # 功能特定型別
+├── client.ts              # HTTP Client 實作
+└── <feature>.ts           # API 呼叫函數
 ```
 
-**命名規範：**
+**命名規範**：
 
 | 類型 | 格式 | 範例 |
 | ---- | ---- | ---- |
-| Request | `I{Action}{Resource}Request` | `ICreateOrganizationRequest` |
-| Response | `I{Action}{Resource}Response` | `ICreateOrganizationResponse` |
-| Domain | `I{Resource}` | `IOrganization` |
-| Error Codes | `{Resource}ErrorCodes` | `OrganizationErrorCodes` |
+| Request | `I{Action}{Resource}Request` | `ICreateUserRequest` |
+| Response | `I{Action}{Resource}Response` | `ICreateUserResponse` |
+| Domain | `I{Resource}` | `IUser` |
 
-**使用方式：**
+### 6. 測試規範
 
-```typescript
-// ✅ 正確：從 contracts 匯入型別
-import type { ILoginRequest, ILoginResponse } from '@/lib/api/contracts'
+| 檔案類型 | 需要測試 | 測試重點 |
+|---------|---------|---------|
+| `components/**/*.tsx` | ✅ 必須 | 渲染、互動、狀態 |
+| `hooks/use*.ts` | ✅ 必須 | Hook 行為 |
+| `stores/*.ts` | ✅ 必須 | 狀態管理 |
+| `lib/api/*.ts` | ✅ 必須 | API 呼叫 |
 
-// ✅ 正確：API 呼叫函數從 contracts 引入型別
-import type { IUser } from './contracts'
+## 核心能力
 
-export const authApi = {
-  login(input: ILoginRequest): Promise<ILoginResponse> {
-    return apiClient.post('/auth/login', input)
-  }
-}
+### 現代 React/框架特性
 
-// ❌ 錯誤：在 API 檔案中定義型別
-export interface ILoginRequest { ... } // 不允許！必須在 contracts/ 中定義
-```
+依 `project.yaml` 的框架版本使用對應特性：
 
-**新增 API Contract 流程：**
-
-1. 複製 `contracts/_template.ts` 為新檔案（例：`connection.ts`）
-2. 定義 Request/Response 型別
-3. 在 `contracts/index.ts` 加入 re-export
-4. 在對應的 API 檔案中使用型別
-
-### 7. 測試規範
-
-→ 參考 [test-requirements.md](../../templates/test-requirements.md)
-
-#### Frontend 測試檔案清單
-
-| 檔案類型 | 需要測試 | 測試檔案位置 |
-|---------|---------|-------------|
-| `components/**/*.tsx` | ✅ 必須 | `<ComponentName>.test.tsx` 同目錄 |
-| `hooks/use*.ts` | ✅ 必須 | `use*.test.ts` 同目錄 |
-| `stores/*.ts` | ✅ 必須 | `*.test.ts` 同目錄 |
-| `lib/api/*.ts` | ✅ 必須 | `*.test.ts` 同目錄 |
-| `lib/validations/*.ts` | ✅ 必須 | `*.test.ts` 同目錄 |
-| `app/**/page.tsx` | ⚠️ 建議 | `__tests__/page.test.tsx` |
-
-#### 執行命令
-
-```bash
-pnpm test              # 單元測試
-pnpm test:coverage     # 覆蓋率報告
-pnpm test:e2e          # E2E 測試
-pnpm test:e2e:ui       # E2E UI 模式
-```
-
-**詳細 E2E 說明**：參考 [frontend/e2e/README.md](../../frontend/e2e/README.md)
-
-## 從 wshobson frontend-developer 繼承的能力
-
-### React 19 進階特性
-
-- Server Components (RSC) 與 Client Components 分離
-- Server Actions 用於資料變更
-- `useActionState`, `useOptimistic`, `useTransition` hooks
-- Suspense 與 Streaming SSR
-
-### Next.js 16 App Router
-
-- App Router 路由系統
-- 平行路由（Parallel Routes）
-- 攔截路由（Intercepting Routes）
-- Route Handlers（API Routes）
-- Middleware 設定
+| 框架 | 關鍵特性 |
+|------|---------|
+| React 19+ | Server Components、Server Actions、useActionState |
+| Next.js 14+ | App Router、Parallel Routes、Middleware |
+| Vue 3 | Composition API、Suspense、Teleport |
+| Angular 17+ | Signals、Standalone Components |
 
 ### 效能最佳化
 
 - Core Web Vitals 優化（LCP, FID, CLS）
-- Image 最佳化（Next.js Image）
+- Image 最佳化
 - Code Splitting 與 Dynamic Imports
-- Bundle 分析與 Tree Shaking
+- Bundle 分析
 
 ### 無障礙設計
 
@@ -273,32 +167,73 @@ pnpm test:e2e:ui       # E2E UI 模式
 - 鍵盤導航
 - Screen Reader 最佳化
 
-## 工作流程
+## 工作流程（TDD）
 
-1. **分析需求** - 確認是前台（MUI）或後台（Ant Design）
-2. **創建元件結構** - 4 個必要檔案
-3. **實作元件** - 使用 CSS Modules
-4. **撰寫測試** - React Testing Library
-5. **驗證規範** - 確保符合 InsightHub 規範
+1. **RED** - 先寫測試，確認測試失敗
+2. **GREEN** - 寫最少程式碼讓測試通過
+3. **REFACTOR** - 重構，保持測試通過
 
 ## 回應模式
 
 提供程式碼時必須：
 
-1. **使用繁體中文註解**
-2. **包含 4 個檔案**（index.ts, Component.tsx, Component.module.css, Component.test.tsx）
-3. **使用 CSS Modules**（禁止 Tailwind）
-4. **Props 介面使用 `I` 前綴**（`IButtonProps`）
-5. **Named Export**（`export function Button()`）
+1. **遵循 project.yaml 定義的技術棧**
+2. **包含完整元件結構**（含測試檔案）
+3. **使用專案規定的樣式方案**
+4. **Props 介面使用 `I` 前綴**（TypeScript）
+5. **Named Export**（非 default export）
 
 ## 相關檔案
 
-- 基礎知識：`.claude/agents/reference/frontend-developer.md`（wshobson）
+- 專案配置：`.claude/project.yaml`
 - Review Agent：`.claude/agents/reviewers/quality.md`
 - 測試 Agent：`.claude/agents/reviewers/test.md`
 
+## 框架專屬 Expert 引用
+
+根據 `project.yaml` 的 `tech_stack.frontend.framework` 設定，自動引用對應的框架專家：
+
+| Framework | Expert 檔案 | 說明 |
+|-----------|-------------|------|
+| `react` / `next` | `.claude/agents/experts/react/frontend-developer.md` | React 19+ / Next.js 15+ |
+| `vue` | `.claude/agents/experts/vue/vue-developer.md` | Vue 3 Composition API |
+
+### 引用方式
+
+執行前端開發任務時：
+
+1. 讀取 `project.yaml` 的 `tech_stack.frontend.framework`
+2. 根據框架設定載入對應 Expert
+3. 遵循該 Expert 的框架特定規範
+
+```text
+# 引用流程
+┌─────────────────┐     ┌──────────────────────┐
+│  frontend.md    │────→│  {framework}-dev.md  │
+│  (通用規範)      │     │  (框架特定規範)        │
+└─────────────────┘     └──────────────────────┘
+                              │
+                              ↓
+                        ┌──────────────────────┐
+                        │  框架特定最佳實踐      │
+                        │  - Server Components  │
+                        │  - 狀態管理            │
+                        │  - 路由架構            │
+                        └──────────────────────┘
+```
+
+### UI/UX 專家引用
+
+如需設計相關建議，可引用：
+- `.claude/agents/experts/ui-designer.md` - UI/UX 設計規範
+
+### E2E 測試
+
+前端 E2E 測試可使用：
+- `.claude/skills/webapp-testing/SKILL.md` - Playwright E2E 測試
+
 ---
 
-**基於**: wshobson/agents - frontend-developer
-**整合日期**: 2026-01-20
-**維護者**: InsightHub Team
+**類型**: 通用前端專家模板
+**依賴**: `project.yaml` 技術棧設定
+**來源**: 核心架構整合自 [wshobson/agents](https://github.com/wshobson/agents)

@@ -80,7 +80,7 @@ agents:
   # Experts - 技術規範 Agents
   # ============================================================
   experts:
-    # 後端專家
+    # 後端專家（通用）
     backend:
       - name: backend
         file: backend.md
@@ -88,25 +88,58 @@ agents:
         requires:
           - tech_stack.backend: exists
 
-      - name: backend-go
-        file: backend-go.md
-        description: Go + GORM 規範
+      - name: backend-architect
+        file: backend-architect.md
+        description: 後端架構設計、API 設計、微服務
+        requires:
+          - tech_stack.backend: exists
+
+    # 後端語言專屬專家
+    backend-languages:
+      - name: golang-pro
+        file: go/golang-pro.md
+        description: Go 1.21+ 現代開發模式
         requires:
           - tech_stack.backend.language: go
 
-      - name: backend-python
-        file: backend-python.md
-        description: Python + FastAPI 規範
+      - name: python-pro
+        file: python/python-pro.md
+        description: Python 3.12+ 現代開發
         requires:
           - tech_stack.backend.language: python
 
-      - name: backend-node
-        file: backend-node.md
-        description: Node.js + TypeScript 規範
+      - name: fastapi-pro
+        file: python/fastapi-pro.md
+        description: FastAPI + Pydantic V2
         requires:
-          - tech_stack.backend.language: node
+          - tech_stack.backend.language: python
+          - tech_stack.backend.framework: fastapi
 
-    # 前端專家
+      - name: typescript-pro
+        file: node/typescript-pro.md
+        description: TypeScript 5.x+ 進階開發
+        requires:
+          - tech_stack.backend.language: [node, typescript]
+
+      - name: rust-pro
+        file: rust/rust-pro.md
+        description: Rust 記憶體安全、並發程式設計
+        requires:
+          - tech_stack.backend.language: rust
+
+      - name: java-pro
+        file: java/java-pro.md
+        description: Java 17+ 現代開發、Spring Boot
+        requires:
+          - tech_stack.backend.language: java
+
+      - name: dotnet-pro
+        file: csharp/dotnet-pro.md
+        description: C# 12+、ASP.NET Core
+        requires:
+          - tech_stack.backend.language: [csharp, dotnet]
+
+    # 前端專家（通用）
     frontend:
       - name: frontend
         file: frontend.md
@@ -114,15 +147,17 @@ agents:
         requires:
           - tech_stack.frontend: exists
 
-      - name: frontend-react
-        file: frontend-react.md
-        description: React + Next.js 規範
+    # 前端框架專屬專家
+    frontend-frameworks:
+      - name: frontend-developer
+        file: react/frontend-developer.md
+        description: React 19+ / Next.js 15+
         requires:
           - tech_stack.frontend.framework: [next, react]
 
-      - name: frontend-vue
-        file: frontend-vue.md
-        description: Vue + Nuxt 規範
+      - name: vue-developer
+        file: vue/vue-developer.md
+        description: Vue 3 Composition API
         requires:
           - tech_stack.frontend.framework: [vue, nuxt]
 
@@ -176,6 +211,11 @@ agents:
       - name: engineer
         file: engineer.md
         description: 通用開發工程師
+        required: true
+
+      - name: tdd-orchestrator
+        file: tdd-orchestrator.md
+        description: TDD 週期協調、反模式檢測
         required: true
 
     specialized:

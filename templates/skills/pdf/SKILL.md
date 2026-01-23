@@ -1,255 +1,292 @@
-# PDF Skill - PDF 處理
+# PDF Processing Skill
 
-全面的 PDF 處理能力，包含文字提取、表格檢測、文件創建、合併、分割和表單處理。
+> PDF 處理專家。專精 PDF 生成、解析、轉換與操作。
 
-## 核心能力
-
-本工具包提供「全面的 PDF 處理」能力，包含文字提取、表格檢測、文件創建、合併、分割和表單處理。利用多個 Python 函式庫和命令列工具處理不同使用場景。
-
-## 主要函式庫
-
-**pypdf** 處理結構操作：合併多個文件、提取個別頁面、檢索中繼資料和旋轉內容。它也支援加密和解密工作流程。
-
-**pdfplumber** 專精於內容提取，特別是「帶版面的文字」保留和複雜的表格識別。它可以將提取的表格轉換為 pandas DataFrames 以供進一步分析。
-
-**reportlab** 從頭開始生成 PDF，使用低層級畫布操作或高層級 Platypus 模板來處理複雜的多頁文件。
-
-## 文字與資料提取
-
-工具包支援標準文字提取、掃描文件的 OCR 處理（透過 pytesseract），以及自動將表格轉換為 Excel 格式。命令列工具如 pdftotext 提供保留版面的提取選項。
-
-## 進階操作
-
-能力包含浮水印、圖片提取、密碼保護和頁面處理（旋轉、分割）。表單填寫操作在補充指南中單獨記錄。
-
-## 部署情境
-
-本 skill 專為批次處理、程式化文件處理和需要「規模化」自動化的場景而設計。Python API 和命令列介面都提供不同整合方法的靈活性。
+**來源**: 整合自 [anthropics/skills](https://github.com/anthropics/skills) - pdf
 
 ---
 
-## InsightHub PDF 報表指南
+## 適用時機
 
-### 報表類型
+當需要處理 PDF 檔案（生成報告、解析內容、轉換格式）時，自動載入此 Skill。
 
-#### 1. 查詢結果 PDF
+---
 
-特點：
-- 標題頁（查詢資訊、執行時間）
-- 資料表格（分頁顯示）
-- 頁首/頁尾（Logo、頁碼）
+## 核心能力
 
-#### 2. 審計日誌 PDF
+### PDF 生成
 
-特點：
-- 時間軸視覺化
-- 操作記錄表格
-- 統計摘要
+- 從 HTML/Markdown 生成 PDF
+- 使用模板生成報告
+- 支援自訂樣式與版面
 
-#### 3. 權限規則文件
+### PDF 解析
 
-特點：
-- 結構化章節
-- 表格權限矩陣
-- 流程圖
+- 文字擷取
+- 表格識別
+- 圖片擷取
+- 結構分析
 
-### 使用 ReportLab 創建報表
+### PDF 操作
 
-```python
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from datetime import datetime
+- 合併多個 PDF
+- 分割 PDF
+- 頁面旋轉/重排
+- 加密/解密
 
-def create_query_result_pdf(data: dict, output_path: str):
-    """創建 InsightHub 查詢結果 PDF"""
+---
 
-    doc = SimpleDocTemplate(output_path, pagesize=A4)
-    story = []
-    styles = getSampleStyleSheet()
+## 技術棧支援
 
-    # 自訂樣式
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#4A90E2'),
-        spaceAfter=30,
-    )
+### Node.js / TypeScript
 
-    # 標題頁
-    story.append(Paragraph("InsightHub 查詢報表", title_style))
-    story.append(Spacer(1, 0.2*inch))
+| 套件 | 用途 |
+|------|------|
+| `pdf-lib` | PDF 建立與修改 |
+| `pdfjs-dist` | PDF 解析 |
+| `puppeteer` | HTML 轉 PDF |
+| `playwright` | HTML 轉 PDF |
 
-    # 查詢資訊
-    info_data = [
-        ['查詢時間', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-        ['連接', data.get('connection_name', 'N/A')],
-        ['資料庫', data.get('database', 'N/A')],
-        ['執行時間', f"{data.get('execution_time', 0):.2f} 秒"],
-    ]
+### Python
 
-    info_table = Table(info_data, colWidths=[2*inch, 4*inch])
-    info_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F5F5F5')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
+| 套件 | 用途 |
+|------|------|
+| `PyPDF2` | PDF 操作 |
+| `pdfplumber` | PDF 解析與表格擷取 |
+| `reportlab` | PDF 生成 |
+| `weasyprint` | HTML 轉 PDF |
 
-    story.append(info_table)
-    story.append(Spacer(1, 0.5*inch))
+---
 
-    # 查詢 SQL
-    story.append(Paragraph("查詢語句", styles['Heading2']))
-    story.append(Paragraph(f"<code>{data.get('query', '')}</code>", styles['Code']))
-    story.append(PageBreak())
+## 使用模式
 
-    # 資料表格
-    story.append(Paragraph("查詢結果", styles['Heading2']))
-    story.append(Spacer(1, 0.2*inch))
+### Node.js：從 HTML 生成 PDF
 
-    # 準備表格資料
-    columns = data.get('columns', [])
-    rows = data.get('rows', [])
+```typescript
+import puppeteer from 'puppeteer';
 
-    table_data = [columns] + rows
-
-    # 分頁顯示（每頁最多 30 行）
-    page_size = 30
-    for i in range(0, len(rows), page_size):
-        page_data = [columns] + rows[i:i+page_size]
-
-        data_table = Table(page_data)
-        data_table.setStyle(TableStyle([
-            # 標題行樣式
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A90E2')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-
-            # 資料行樣式
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ]))
-
-        story.append(data_table)
-
-        if i + page_size < len(rows):
-            story.append(PageBreak())
-
-    # 生成 PDF
-    doc.build(story)
+async function generatePDF(html: string, outputPath: string) {
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  
+  await page.setContent(html, { waitUntil: 'networkidle0' });
+  
+  await page.pdf({
+    path: outputPath,
+    format: 'A4',
+    margin: {
+      top: '20mm',
+      right: '20mm',
+      bottom: '20mm',
+      left: '20mm'
+    },
+    printBackground: true
+  });
+  
+  await browser.close();
+}
 ```
 
-### 審計日誌 PDF
+### Node.js：PDF 操作
 
-```python
-def create_audit_log_pdf(logs: list, output_path: str):
-    """創建審計日誌 PDF"""
+```typescript
+import { PDFDocument } from 'pdf-lib';
+import fs from 'fs/promises';
 
-    doc = SimpleDocTemplate(output_path, pagesize=A4)
-    story = []
-    styles = getSampleStyleSheet()
+// 合併 PDF
+async function mergePDFs(pdfPaths: string[], outputPath: string) {
+  const mergedPdf = await PDFDocument.create();
+  
+  for (const pdfPath of pdfPaths) {
+    const pdfBytes = await fs.readFile(pdfPath);
+    const pdf = await PDFDocument.load(pdfBytes);
+    const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+    pages.forEach(page => mergedPdf.addPage(page));
+  }
+  
+  const mergedPdfBytes = await mergedPdf.save();
+  await fs.writeFile(outputPath, mergedPdfBytes);
+}
 
-    # 標題
-    story.append(Paragraph("審計日誌報表", styles['Title']))
-    story.append(Spacer(1, 0.3*inch))
-
-    # 統計摘要
-    story.append(Paragraph("統計摘要", styles['Heading2']))
-
-    summary_data = [
-        ['總操作數', str(len(logs))],
-        ['時間範圍', f"{logs[0]['timestamp']} ~ {logs[-1]['timestamp']}"],
-        ['用戶數', str(len(set(log['user'] for log in logs)))],
-    ]
-
-    summary_table = Table(summary_data)
-    summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F5F5F5')),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-
-    story.append(summary_table)
-    story.append(Spacer(1, 0.3*inch))
-
-    # 操作記錄
-    story.append(Paragraph("操作記錄", styles['Heading2']))
-
-    log_data = [['時間', '用戶', '操作', '資源']]
-    for log in logs:
-        log_data.append([
-            log['timestamp'],
-            log['user'],
-            log['action'],
-            log['resource']
-        ])
-
-    log_table = Table(log_data, colWidths=[1.5*inch, 1.5*inch, 2*inch, 2*inch])
-    log_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A90E2')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-    ]))
-
-    story.append(log_table)
-
-    # 生成 PDF
-    doc.build(story)
+// 分割 PDF
+async function splitPDF(pdfPath: string, outputDir: string) {
+  const pdfBytes = await fs.readFile(pdfPath);
+  const pdf = await PDFDocument.load(pdfBytes);
+  
+  for (let i = 0; i < pdf.getPageCount(); i++) {
+    const newPdf = await PDFDocument.create();
+    const [page] = await newPdf.copyPages(pdf, [i]);
+    newPdf.addPage(page);
+    
+    const newPdfBytes = await newPdf.save();
+    await fs.writeFile(`${outputDir}/page-${i + 1}.pdf`, newPdfBytes);
+  }
+}
 ```
 
-### 最佳實踐
-
-1. **分頁處理**: 大型表格自動分頁
-2. **樣式一致**: 使用 InsightHub 品牌顏色
-3. **頁首頁尾**: 添加 Logo 和頁碼
-4. **錯誤處理**: 處理特殊字元和長文字
-5. **檔案大小**: 優化圖片以減少檔案大小
-
-### 表格提取
-
-使用 pdfplumber 從現有 PDF 提取表格：
+### Python：PDF 解析
 
 ```python
 import pdfplumber
 
-def extract_tables_from_pdf(pdf_path: str) -> list:
-    """從 PDF 提取所有表格"""
-    tables = []
+def extract_text(pdf_path: str) -> str:
+    """擷取 PDF 文字內容"""
+    text = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text.append(page.extract_text())
+    return '\n'.join(text)
 
+def extract_tables(pdf_path: str) -> list:
+    """擷取 PDF 中的表格"""
+    tables = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             page_tables = page.extract_tables()
             tables.extend(page_tables)
-
     return tables
 ```
 
-## 相關檔案
+### Python：報告生成
 
-- Command: `.claude/commands/export-pdf.md` (待創建)
+```python
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table
+from reportlab.lib.styles import getSampleStyleSheet
 
-## 相關 Tickets
-
-- TICKET-037: 查詢結果導出功能
-- TICKET-024: 審計日誌
+def generate_report(data: dict, output_path: str):
+    """生成 PDF 報告"""
+    doc = SimpleDocTemplate(output_path, pagesize=A4)
+    styles = getSampleStyleSheet()
+    elements = []
+    
+    # 標題
+    elements.append(Paragraph(data['title'], styles['Heading1']))
+    
+    # 內容
+    for section in data['sections']:
+        elements.append(Paragraph(section['heading'], styles['Heading2']))
+        elements.append(Paragraph(section['content'], styles['Normal']))
+    
+    # 表格
+    if 'table_data' in data:
+        table = Table(data['table_data'])
+        elements.append(table)
+    
+    doc.build(elements)
+```
 
 ---
 
-**Skill 來源**: Anthropic Skills - `pdf`
-**整合日期**: 2026-01-20
-**維護者**: InsightHub Team
+## 報告模板
+
+### 標準報告結構
+
+```markdown
+# 報告標題
+
+## 摘要
+[執行摘要]
+
+## 詳細內容
+### 章節 1
+[內容]
+
+### 章節 2
+[內容]
+
+## 數據表格
+| 欄位 1 | 欄位 2 | 欄位 3 |
+|--------|--------|--------|
+| 值 1   | 值 2   | 值 3   |
+
+## 結論
+[結論與建議]
+
+---
+生成日期: {date}
+```
+
+---
+
+## 最佳實踐
+
+### 1. 效能優化
+
+```typescript
+// 批次處理大量 PDF
+async function batchProcess(files: string[], concurrency = 5) {
+  const chunks = [];
+  for (let i = 0; i < files.length; i += concurrency) {
+    chunks.push(files.slice(i, i + concurrency));
+  }
+  
+  for (const chunk of chunks) {
+    await Promise.all(chunk.map(processPDF));
+  }
+}
+```
+
+### 2. 錯誤處理
+
+```typescript
+async function safePDFParse(pdfPath: string) {
+  try {
+    const pdfBytes = await fs.readFile(pdfPath);
+    const pdf = await PDFDocument.load(pdfBytes);
+    return pdf;
+  } catch (error) {
+    if (error.message.includes('encrypted')) {
+      throw new Error('PDF is encrypted and requires a password');
+    }
+    throw new Error(`Failed to parse PDF: ${error.message}`);
+  }
+}
+```
+
+### 3. 記憶體管理
+
+```python
+# 處理大型 PDF 時使用串流
+def process_large_pdf(pdf_path: str):
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            # 逐頁處理，避免載入整個檔案到記憶體
+            yield process_page(page)
+```
+
+---
+
+## 與專案整合
+
+### 報告生成工作流程
+
+```text
+資料來源 → 資料處理 → 套用模板 → 生成 PDF → 輸出
+    │          │          │          │
+    └──────────┴──────────┴──────────┘
+                  可配置
+```
+
+### 配置範例
+
+```yaml
+# project.yaml
+reports:
+  output_dir: reports/
+  template_dir: templates/reports/
+  default_format: A4
+  margin: 20mm
+```
+
+---
+
+## 相關檔案
+
+- 文件處理：`.claude/skills/xlsx/SKILL.md`
+- 文件協作：`.claude/skills/doc-coauthoring/SKILL.md`
+
+---
+
+**類型**: 文件處理 Skill
+**來源**: [anthropics/skills](https://github.com/anthropics/skills) - pdf

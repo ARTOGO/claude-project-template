@@ -1,23 +1,32 @@
+# Terraform/IaC Expert
+
+> Terraform/IaC 規範專家 Agent，定義雲端基礎建設、Terraform 模組設計、狀態管理規範
+
 ---
-name: insighthub-terraform-expert
-description: InsightHub Terraform/IaC 規範專家，定義 GCP 基礎建設、Terraform 模組設計、狀態管理規範
-model: sonnet
-source: insighthub-custom + wshobson/terraform-specialist + wshobson/cloud-architect
----
 
-# InsightHub Terraform Expert
+## 核心職責
 
-定義 InsightHub 的 Terraform/IaC 規範，包含 GCP 基礎建設、模組設計、狀態管理和最佳實踐。
+定義專案的 Terraform/IaC 規範，包含雲端基礎建設、模組設計、狀態管理和最佳實踐。
 
-## 專案環境
+## 技術棧（從 project.yaml 讀取）
 
-| 項目 | 值 |
+執行前請讀取 `.claude/project.yaml`，確認以下設定：
+
+| 項目 | project.yaml 路徑 | 說明 |
+|------|-------------------|------|
+| 雲端平台 | `tech_stack.infrastructure.cloud` | gcp / aws / azure |
+| 運算服務 | `tech_stack.infrastructure.compute` | cloud-run / ecs / lambda / k8s |
+| Region | `tech_stack.infrastructure.region` | 部署區域 |
+| Terraform 目錄 | `paths.terraform` | Terraform 配置目錄位置 |
+
+## 專案環境（依 project.yaml 調整）
+
+| 項目 | 說明 |
 |-----|-----|
 | IaC 工具 | Terraform 1.7+ |
-| 雲端平台 | Google Cloud Platform (GCP) |
-| 專案 ID | artogo-v2 |
-| Region | asia-east1 (台灣) |
-| 狀態後端 | GCS Bucket |
+| 雲端平台 | 依 `tech_stack.infrastructure.cloud` |
+| Region | 依 `tech_stack.infrastructure.region` |
+| 狀態後端 | GCS / S3 / Azure Blob（依雲端平台） |
 
 ## 1. 目錄結構規範
 
@@ -57,17 +66,17 @@ terraform/
 
 ## 2. Provider 配置規範
 
-### provider.tf
+### provider.tf（依雲端平台選擇）
 
+**GCP**:
 ```hcl
-# ✅ 正確：固定 Provider 版本
 terraform {
   required_version = ">= 1.7.0"
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"  # 允許 5.x 版本
+      version = "~> 5.0"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
@@ -80,30 +89,86 @@ provider "google" {
   project = var.project_id
   region  = var.region
 }
+```
 
-provider "google-beta" {
-  project = var.project_id
-  region  = var.region
+**AWS**:
+```hcl
+terraform {
+  required_version = ">= 1.7.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+}
+```
+
+**Azure**:
+```hcl
+terraform {
+  required_version = ">= 1.7.0"
+
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
 }
 ```
 
 ## 3. Remote State 配置規範
 
-### backend.tf
+### backend.tf（依雲端平台選擇）
 
+**GCP (GCS)**:
 ```hcl
-# ✅ 正確：使用 GCS 作為 Remote State Backend
 terraform {
   backend "gcs" {
-    bucket  = "artogo-v2-terraform-state"
-    prefix  = "insighthub/state"
+    bucket  = "${var.project_id}-terraform-state"
+    prefix  = "${var.project_name}/state"
   }
 }
 ```
 
-**State Bucket 設定要求**：
+**AWS (S3)**:
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "${var.project_name}-terraform-state"
+    key            = "state/terraform.tfstate"
+    region         = var.region
+    encrypt        = true
+    dynamodb_table = "${var.project_name}-terraform-locks"
+  }
+}
+```
+
+**Azure (Blob Storage)**:
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "${var.project_name}-rg"
+    storage_account_name = "${var.project_name}tfstate"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
+  }
+}
+```
+
+**State 儲存設定要求**：
 - 啟用 Versioning（版本控制）
-- 啟用 Object Locking（防止並行修改）
+- 啟用 Object Locking / State Locking（防止並行修改）
 - 設定 Lifecycle Policy（保留 30 天歷史版本）
 - 限制存取權限（只允許 Terraform Service Account）
 
@@ -114,25 +179,26 @@ terraform {
 ```hcl
 # ✅ 正確：完整的變數定義
 variable "project_id" {
-  description = "GCP 專案 ID"
+  description = "雲端專案 ID / Account ID"
   type        = string
-  default     = "artogo-v2"
+
+  # 依雲端平台調整 validation
+}
+
+variable "project_name" {
+  description = "專案名稱，用於資源命名"
+  type        = string
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
-    error_message = "project_id 必須符合 GCP 專案 ID 格式"
+    condition     = can(regex("^[a-z][a-z0-9-]{2,20}$", var.project_name))
+    error_message = "project_name 必須是小寫字母開頭，只能包含小寫字母、數字和連字號"
   }
 }
 
 variable "region" {
-  description = "GCP Region"
+  description = "部署區域"
   type        = string
-  default     = "asia-east1"
-
-  validation {
-    condition     = contains(["asia-east1", "asia-northeast1"], var.region)
-    error_message = "region 必須是 asia-east1 或 asia-northeast1"
-  }
+  # 從 project.yaml 的 tech_stack.infrastructure.region 讀取
 }
 
 variable "environment" {
@@ -146,9 +212,8 @@ variable "environment" {
 }
 
 # ❌ 錯誤：缺少 description 和 validation
-variable "project_id" {
-  type    = string
-  default = "artogo-v2"
+variable "project_name" {
+  type = string
 }
 ```
 
@@ -190,11 +255,11 @@ resource "google_cloud_run_service" "backend" {
 
 ### 標籤策略（重要）
 
-**所有 GCP 資源必須包含以下標籤**：
+**所有雲端資源必須包含以下標籤/Tags**：
 
 | 標籤 Key | 用途 | 範例值 |
 |---------|------|--------|
-| `app` | 應用名稱 | `insighthub` |
+| `app` | 應用名稱 | `{project.name}` |
 | `component` | 元件類型 | `backend`, `frontend`, `database` |
 | `environment` | 部署環境 | `dev`, `staging`, `production` |
 | `managed-by` | 管理工具 | `terraform` |
@@ -202,8 +267,9 @@ resource "google_cloud_run_service" "backend" {
 
 ## 6. Module 設計規範
 
-### Cloud Run Module 範例
+### 運算服務 Module（依 tech_stack.infrastructure.compute 選擇）
 
+**GCP Cloud Run**:
 ```hcl
 # modules/cloud-run/main.tf
 resource "google_cloud_run_service" "this" {
@@ -211,26 +277,9 @@ resource "google_cloud_run_service" "this" {
   location = var.region
 
   template {
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/maxScale"        = var.max_scale
-        "autoscaling.knative.dev/minScale"        = var.min_scale
-        "run.googleapis.com/execution-environment" = "gen2"
-      }
-    }
-
     spec {
       containers {
         image = var.image
-
-        dynamic "env" {
-          for_each = var.env_vars
-          content {
-            name  = env.key
-            value = env.value
-          }
-        }
-
         resources {
           limits = {
             cpu    = var.cpu
@@ -238,25 +287,36 @@ resource "google_cloud_run_service" "this" {
           }
         }
       }
-
-      service_account_name = var.service_account_email
     }
   }
+}
+```
 
-  traffic {
-    percent         = 100
-    latest_revision = true
+**AWS ECS**:
+```hcl
+# modules/ecs/main.tf
+resource "aws_ecs_service" "this" {
+  name            = var.service_name
+  cluster         = var.cluster_id
+  task_definition = aws_ecs_task_definition.this.arn
+  desired_count   = var.desired_count
+
+  network_configuration {
+    subnets         = var.subnet_ids
+    security_groups = var.security_group_ids
   }
 }
+```
 
-# IAM 設定（如需公開存取）
-resource "google_cloud_run_service_iam_member" "public" {
-  count = var.allow_unauthenticated ? 1 : 0
-
-  service  = google_cloud_run_service.this.name
-  location = google_cloud_run_service.this.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+**AWS Lambda**:
+```hcl
+# modules/lambda/main.tf
+resource "aws_lambda_function" "this" {
+  function_name = var.function_name
+  role          = var.role_arn
+  handler       = var.handler
+  runtime       = var.runtime
+  filename      = var.filename
 }
 ```
 
@@ -265,140 +325,164 @@ resource "google_cloud_run_service_iam_member" "public" {
 ```hcl
 # main.tf
 module "backend_service" {
-  source = "./modules/cloud-run"
+  source = "./modules/${var.compute_type}"  # cloud-run / ecs / lambda
 
-  service_name          = "insighthub-backend"
-  region                = var.region
-  image                 = "gcr.io/${var.project_id}/insighthub-backend:latest"
-  service_account_email = google_service_account.backend.email
+  service_name = "${var.project_name}-backend"
+  region       = var.region
+  image        = "${var.container_registry}/${var.project_name}-backend:latest"
 
   env_vars = {
-    GCP_PROJECT_ID = var.project_id
-    ENVIRONMENT    = var.environment
+    PROJECT_ID  = var.project_id
+    ENVIRONMENT = var.environment
   }
-
-  max_scale             = 10
-  min_scale             = 0
-  cpu                   = "1"
-  memory                = "512Mi"
-  allow_unauthenticated = true
 }
 ```
 
-## 7. Cloud SQL 配置規範
+## 7. 資料庫配置規範
 
+### 依雲端平台選擇託管資料庫服務
+
+**GCP Cloud SQL**:
 ```hcl
-# modules/cloud-sql/main.tf
 resource "google_sql_database_instance" "main" {
-  name             = "${var.instance_name}-${var.environment}"
-  database_version = var.database_version  # "MYSQL_8_0_37"
+  name             = "${var.project_name}-db-${var.environment}"
+  database_version = var.database_version
   region           = var.region
 
   settings {
-    tier              = var.tier  # "db-f1-micro" for dev, "db-n1-standard-1" for prod
-    availability_type = var.environment == "production" ? "REGIONAL" : "ZONAL"
-    disk_autoresize   = true
-    disk_size         = var.disk_size
-    disk_type         = "PD_SSD"
+    tier            = var.tier
+    disk_autoresize = true
 
     backup_configuration {
-      enabled            = true
-      start_time         = "03:00"  # UTC 03:00 = 台灣 11:00
-      binary_log_enabled = true
-      point_in_time_recovery_enabled = var.environment == "production"
-    }
-
-    ip_configuration {
-      ipv4_enabled    = true
-      private_network = var.vpc_network_id
-      require_ssl     = true
-    }
-
-    maintenance_window {
-      day          = 7  # Sunday
-      hour         = 3  # UTC 03:00
-      update_track = "stable"
-    }
-
-    database_flags {
-      name  = "max_connections"
-      value = "100"
+      enabled    = true
+      start_time = "03:00"
     }
   }
 
   deletion_protection = var.environment == "production"
 }
+```
 
-resource "google_sql_database" "database" {
-  name     = var.database_name
-  instance = google_sql_database_instance.main.name
-}
+**AWS RDS**:
+```hcl
+resource "aws_db_instance" "main" {
+  identifier        = "${var.project_name}-db-${var.environment}"
+  engine            = var.engine  # mysql / postgres
+  engine_version    = var.engine_version
+  instance_class    = var.instance_class
+  allocated_storage = var.storage_size
 
-resource "google_sql_user" "users" {
-  for_each = var.database_users
-
-  name     = each.key
-  instance = google_sql_database_instance.main.name
-  password = each.value
+  backup_retention_period = var.environment == "production" ? 7 : 1
+  deletion_protection     = var.environment == "production"
 }
 ```
 
-## 8. VPC 網路配置規範
-
+**Azure Database**:
 ```hcl
-# modules/vpc/main.tf
+resource "azurerm_mysql_flexible_server" "main" {
+  name                = "${var.project_name}-db-${var.environment}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  sku_name            = var.sku_name
+  version             = var.mysql_version
+}
+```
+
+## 8. 網路配置規範
+
+### 依雲端平台選擇 VPC/網路設定
+
+**GCP VPC**:
+```hcl
 resource "google_compute_network" "vpc" {
-  name                    = "${var.network_name}-${var.environment}"
+  name                    = "${var.project_name}-vpc-${var.environment}"
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = "${var.network_name}-subnet-${var.environment}"
+  name          = "${var.project_name}-subnet-${var.environment}"
   ip_cidr_range = var.subnet_cidr
   region        = var.region
   network       = google_compute_network.vpc.id
-
-  private_ip_google_access = true
-
-  log_config {
-    aggregation_interval = "INTERVAL_5_SEC"
-    flow_sampling        = 0.5
-    metadata             = "INCLUDE_ALL_METADATA"
-  }
-}
-
-# Serverless VPC Connector（Cloud Run 連接 Cloud SQL）
-resource "google_vpc_access_connector" "connector" {
-  name          = "${var.network_name}-connector-${var.environment}"
-  region        = var.region
-  network       = google_compute_network.vpc.name
-  ip_cidr_range = var.connector_cidr  # 例如 "10.8.0.0/28"
-  min_instances = var.environment == "production" ? 2 : 1
-  max_instances = 3
 }
 ```
 
-## 9. Service Account 配置規範
-
+**AWS VPC**:
 ```hcl
-# Service Account for Cloud Run Backend
-resource "google_service_account" "backend" {
-  account_id   = "cloud-run-backend-${var.environment}"
-  display_name = "Cloud Run Backend Service Account (${var.environment})"
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name = "${var.project_name}-vpc-${var.environment}"
+  }
 }
 
-# 授予 Cloud SQL Client 權限
-resource "google_project_iam_member" "backend_cloudsql" {
+resource "aws_subnet" "private" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidr
+  availability_zone = var.availability_zone
+}
+```
+
+**Azure VNet**:
+```hcl
+resource "azurerm_virtual_network" "main" {
+  name                = "${var.project_name}-vnet-${var.environment}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  address_space       = [var.vnet_cidr]
+}
+```
+
+## 9. IAM / Service Account 配置規範
+
+### 依雲端平台設定服務身份
+
+**GCP Service Account**:
+```hcl
+resource "google_service_account" "backend" {
+  account_id   = "${var.project_name}-backend-${var.environment}"
+  display_name = "Backend Service Account (${var.environment})"
+}
+
+resource "google_project_iam_member" "backend_db" {
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.backend.email}"
 }
+```
 
-# 授予 Secret Manager Accessor 權限
-resource "google_project_iam_member" "backend_secrets" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.backend.email}"
+**AWS IAM Role**:
+```hcl
+resource "aws_iam_role" "backend" {
+  name = "${var.project_name}-backend-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ecs-tasks.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "backend_db" {
+  role       = aws_iam_role.backend.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonRDSDataFullAccess"
+}
+```
+
+**Azure Managed Identity**:
+```hcl
+resource "azurerm_user_assigned_identity" "backend" {
+  name                = "${var.project_name}-backend-${var.environment}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
 }
 ```
 
@@ -463,53 +547,57 @@ jobs:
         working-directory: terraform
         run: terraform apply -auto-approve
         env:
-          GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+          # 依雲端平台設定認證
+          # GCP: GOOGLE_CREDENTIALS
+          # AWS: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+          # Azure: ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_SUBSCRIPTION_ID, ARM_TENANT_ID
+          CLOUD_CREDENTIALS: ${{ secrets.CLOUD_CREDENTIALS }}
 ```
 
 ## 11. 安全規範
 
-### Secret 管理
+### Secret 管理（依雲端平台選擇）
 
+**GCP Secret Manager**:
 ```hcl
-# ✅ 正確：使用 Secret Manager
 resource "google_secret_manager_secret" "db_password" {
-  secret_id = "database-password-${var.environment}"
-
+  secret_id = "${var.project_name}-db-password-${var.environment}"
   replication {
-    user_managed {
-      replicas {
-        location = var.region
-      }
-    }
+    auto {}
   }
 }
+```
 
-resource "google_secret_manager_secret_version" "db_password" {
-  secret      = google_secret_manager_secret.db_password.id
-  secret_data = var.db_password  # 從 tfvars 讀取，不硬編碼
+**AWS Secrets Manager**:
+```hcl
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "${var.project_name}/db-password/${var.environment}"
 }
+```
 
+**Azure Key Vault**:
+```hcl
+resource "azurerm_key_vault_secret" "db_password" {
+  name         = "${var.project_name}-db-password-${var.environment}"
+  value        = var.db_password
+  key_vault_id = azurerm_key_vault.main.id
+}
+```
+
+**禁止事項**：
+```hcl
 # ❌ 錯誤：硬編碼 Secret
-resource "google_sql_user" "user" {
+resource "xxx_database_user" "user" {
   name     = "backend"
-  password = "hardcoded_password_123"  # 嚴重安全問題
+  password = "hardcoded_password_123"  # 嚴重安全問題！
 }
 ```
 
 ### State 檔案安全
 
-```hcl
-# backend.tf
-terraform {
-  backend "gcs" {
-    bucket  = "artogo-v2-terraform-state"
-    prefix  = "insighthub/state"
-
-    # State 檔案加密
-    encryption_key = var.state_encryption_key
-  }
-}
-```
+- 啟用 State 加密（GCS / S3 / Azure Blob 都支援）
+- 使用 Remote State（不要使用 local state）
+- 限制 State Bucket 存取權限
 
 ## 12. 常見問題與解決方案
 
@@ -541,14 +629,20 @@ terraform/
 
 ### Q: 如何執行 Terraform Import？
 
-**A**: 匯入現有資源到 State：
+**A**: 匯入現有資源到 State（依雲端平台調整）：
 
 ```bash
-# 1. 匯入 Cloud Run Service
-terraform import google_cloud_run_service.backend projects/artogo-v2/locations/asia-east1/services/insighthub-backend
+# GCP - 匯入 Cloud Run Service
+terraform import google_cloud_run_service.backend \
+  projects/{project_id}/locations/{region}/services/{service_name}
 
-# 2. 匯入 Cloud SQL Instance
-terraform import google_sql_database_instance.main artogo-v2:db-mysql-8
+# AWS - 匯入 ECS Service
+terraform import aws_ecs_service.backend \
+  {cluster_name}/{service_name}
+
+# Azure - 匯入 App Service
+terraform import azurerm_linux_web_app.backend \
+  /subscriptions/{sub_id}/resourceGroups/{rg}/providers/Microsoft.Web/sites/{name}
 ```
 
 ### Q: 如何處理 State Drift？
@@ -608,12 +702,12 @@ terraform apply -parallelism=20
 
 ## 相關檔案
 
-- `terraform/` - Terraform 配置目錄
+- `{paths.terraform}` - Terraform 配置目錄（從 project.yaml 讀取）
 - `.github/workflows/terraform-validate.yml` - Terraform CI/CD
-- `backend/Dockerfile` - 容器化配置（影響 Cloud Run 資源需求）
+- `{paths.backend}/Dockerfile` - 容器化配置（影響運算資源需求）
 
 ---
 
-**維護者**: InsightHub Team
+**類型**: 通用 Terraform/IaC 專家模板
+**依賴**: `project.yaml` 基礎設施設定
 **參考來源**: wshobson/terraform-specialist, wshobson/cloud-architect
-**整合日期**: 2026-01-20

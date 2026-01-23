@@ -632,19 +632,54 @@ options:
 
 ### Agent 映射表
 
+#### 後端語言專屬 Expert
+
 | Tech Stack | 啟用的 Agents | 說明 |
 | ---------- | ------------ | ---- |
-| **Go** | `golang-pro`, `experts/backend.md` | Go 專業實踐 |
-| **Python** | `experts/backend.md` | Python 後端規範 |
-| **Node.js/TypeScript** | `test-automator`, `experts/backend.md` | Node.js 後端 |
-| **React/Next.js** | `frontend-developer`, `experts/frontend.md` | 前端開發專家 |
-| **Vue/Nuxt** | `frontend-developer`, `experts/frontend.md` | Vue 前端開發 |
-| **PostgreSQL/MySQL** | `database-architect`, `experts/database.md` | 資料庫設計 |
-| **Docker** | `devops-troubleshooter` | DevOps 問題排查 |
-| **GCP** | `cloud-architect`, `experts/cicd.md` | GCP 雲架構 |
-| **AWS** | `cloud-architect` | AWS 雲架構 |
+| **Go** | `experts/backend.md` → `experts/go/golang-pro.md` | Go 1.21+ 專業實踐 |
+| **Python** | `experts/backend.md` → `experts/python/python-pro.md` | Python 3.12+ 現代開發 |
+| **Python + FastAPI** | `experts/backend.md` → `experts/python/fastapi-pro.md` | FastAPI + Pydantic V2 |
+| **Node.js/TypeScript** | `experts/backend.md` → `experts/node/typescript-pro.md` | TypeScript 5.x+ 進階開發 |
+| **Rust** | `experts/backend.md` → `experts/rust/rust-pro.md` | Rust 記憶體安全、並發程式設計 |
+| **Java** | `experts/backend.md` → `experts/java/java-pro.md` | Java 17+ 現代開發、Spring Boot |
+| **C#/.NET** | `experts/backend.md` → `experts/csharp/dotnet-pro.md` | C# 12+、ASP.NET Core |
+
+#### 前端框架專屬 Expert
+
+| Tech Stack | 啟用的 Agents | 說明 |
+| ---------- | ------------ | ---- |
+| **React/Next.js** | `experts/frontend.md` → `experts/react/frontend-developer.md` | React 19+ / Next.js 15+ |
+| **Vue/Nuxt** | `experts/frontend.md` → `experts/vue/vue-developer.md` | Vue 3 Composition API |
+
+#### 設計與 UI/UX Expert
+
+| Tech Stack / 條件 | 啟用的 Agents | 說明 |
+| ----------------- | ------------ | ---- |
+| **有前端專案** | `experts/ux-ui-designer.md` | UI/UX 設計規範、使用者體驗 |
+| **有前端專案** | `experts/accessibility-expert.md` | WCAG 無障礙設計、A11y 檢查 |
+| **design.enabled: true** | `experts/design-system-architect.md` | Design System 架構、Design Tokens |
+
+#### 架構與基礎設施 Expert
+
+| Tech Stack | 啟用的 Agents | 說明 |
+| ---------- | ------------ | ---- |
+| **微服務架構** | `experts/backend-architect.md` | API 設計、微服務拆分 |
+| **PostgreSQL/MySQL** | `experts/database.md` | 資料庫設計 |
+| **GCP** | `reference/cloud-architect.md`, `experts/cicd.md` | GCP 雲架構 |
+| **AWS** | `reference/cloud-architect.md` | AWS 雲架構 |
 | **Terraform** | `experts/terraform.md` | Terraform IaC |
 | **GitHub Actions** | `experts/cicd.md` | CI/CD 規範 |
+
+#### Worker Agents
+
+| 場景 | 啟用的 Agents | 說明 |
+| ---- | ------------ | ---- |
+| **TDD 開發** | `workers/tdd-orchestrator.md` | TDD 週期協調、反模式檢測 |
+| **一般開發** | `workers/engineer.md` | 開發工程師 |
+| **純後端專案** | `workers/engineer-backend.md` | 後端專屬開發工程師 |
+| **純前端專案** | `workers/engineer-frontend.md` | 前端專屬開發工程師 |
+| **DevOps 問題** | `workers/devops-troubleshooter.md` | DevOps 問題排查、生產除錯 |
+| **測試自動化** | `workers/test-automator.md` | AI 生成測試、測試自動化 |
 
 ### Command 映射表
 
@@ -659,13 +694,16 @@ options:
 
 ### Skill 映射表
 
-| Tech Stack | 啟用的 Skills | 來源 |
-| ---------- | ------------ | ---- |
-| **Web 前端** | `webapp-testing` | anthropics/skills |
-| **有報表需求** | `xlsx`, `pdf` | anthropics/skills |
-| **有文件協作** | `doc-coauthoring` | anthropics/skills |
+| Tech Stack | 啟用的 Skills | 檔案路徑 | 來源 |
+| ---------- | ------------ | -------- | ---- |
+| **Web 前端** | `webapp-testing` | `skills/webapp-testing/SKILL.md` | anthropics/skills |
+| **有報表需求** | `xlsx` | `skills/xlsx/SKILL.md` | anthropics/skills |
+| **有報表需求** | `pdf` | `skills/pdf/SKILL.md` | anthropics/skills |
+| **有文件協作** | `doc-coauthoring` | `skills/doc-coauthoring/SKILL.md` | anthropics/skills |
 
 ### Reviewer Agent 映射表
+
+#### 核心 Reviewers（標準選項）
 
 | 選項 | 啟用的 Reviewer | 職責 |
 | ---- | -------------- | ---- |
@@ -673,6 +711,53 @@ options:
 | **Test** | `reviewers/test.md` | 測試覆蓋率檢查 |
 | **Quality** | `reviewers/quality.md` | 程式碼品質檢查 |
 | **PM** | `reviewers/pm.md` | 驗收條件檢查 |
+
+#### 進階 Reviewers（依專案需求啟用）
+
+| 條件 / 場景 | 啟用的 Reviewer | 職責 |
+| ----------- | -------------- | ---- |
+| **微服務/複雜架構** | `reviewers/architect.md` | 架構設計審查、模組邊界 |
+| **有前端專案** | `reviewers/ui.md` | UI/UX 一致性、設計規範遵循 |
+| **PRD 驅動開發** | `reviewers/prd-alignment.md` | PRD 對齊檢查、需求符合度 |
+| **估算相關** | `reviewers/estimator.md` | 工時估算審查、複雜度評估 |
+| **有 IaC/雲端** | `reviewers/infra-validator.md` | 基礎設施配置驗證 |
+| **需要安全掃描** | `reviewers/security-scanner.md` | 自動化安全掃描、漏洞檢測 |
+| **有部署流程** | `reviewers/rollback.md` | 回滾策略審查、部署安全 |
+| **範圍控管** | `reviewers/scope.md` | 範圍蔓延檢測、變更控制 |
+
+### 引用機制說明
+
+通用 Agent（如 `backend.md`、`frontend.md`）會根據 `project.yaml` 的技術棧設定，自動引用對應的語言/框架專屬 Expert：
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            Agent 引用架構                                        │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  project.yaml                                                                   │
+│       │                                                                         │
+│       │  tech_stack.backend.language: go                                        │
+│       │  tech_stack.backend.framework: gin                                      │
+│       │  tech_stack.frontend.framework: next                                    │
+│       │                                                                         │
+│       ↓                                                                         │
+│  ┌─────────────┐                                                               │
+│  │ backend.md  │ ──→ 讀取 language=go ──→ 引用 experts/go/golang-pro.md         │
+│  │ (通用規範)   │                                                               │
+│  └─────────────┘                                                               │
+│                                                                                 │
+│  ┌─────────────┐                                                               │
+│  │ frontend.md │ ──→ 讀取 framework=next ──→ 引用 experts/react/frontend-developer.md │
+│  │ (通用規範)   │                                                               │
+│  └─────────────┘                                                               │
+│                                                                                 │
+│  ┌─────────────┐                                                               │
+│  │ tdd.md      │ ──→ 引用 workers/tdd-orchestrator.md                          │
+│  │ (TDD 指令)   │                                                               │
+│  └─────────────┘                                                               │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 

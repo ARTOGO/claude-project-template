@@ -1,35 +1,89 @@
 # Test Agent
 
-> 測試審查 Agent。檢查測試覆蓋率、E2E 測試完整性、測試品質。
+> 測試審查 Agent。檢查測試覆蓋率、E2E 測試完整性、測試品質、TDD 合規。
 
 ## 優先級
 
-**高** - 確保程式碼有足夠的測試保護。
+**高** - 確保程式碼有足夠的測試保護，並驗證 TDD 流程合規。
+
+## 技術棧（從 project.yaml 讀取）
+
+執行前請讀取 `.claude/project.yaml`，確認以下設定：
+
+| 項目 | project.yaml 路徑 | 說明 |
+|------|-------------------|------|
+| 測試覆蓋率 | `team.test_coverage` | 預設 80% |
+| 後端語言 | `tech_stack.backend.language` | 決定測試框架和命令 |
+| 前端測試 | `tech_stack.frontend.testing` | vitest / jest |
+| E2E 測試 | `tech_stack.frontend.e2e` | playwright / cypress |
 
 ## 審查範圍
 
+### TDD 合規檢查（重要）
+
+**驗證開發流程是否遵循 TDD**：
+
+| 檢查項目 | 判定方式 | 結果 |
+|---------|---------|------|
+| 測試先於實作 | Git 歷史或 TDD 報告 | PASS/FAIL |
+| 測試覆蓋所有驗收條件 | 對照 Ticket | PASS/FAIL |
+| 包含 edge cases | 檢查測試案例 | PASS/FAIL |
+| 設計稿狀態已測試 | 對照設計稿（如有） | PASS/FAIL |
+
+**TDD 違規行為（自動 FAIL）**：
+
+- 先寫實作再補測試
+- 測試只有 happy path，缺少 error cases
+- 有設計稿但未測試所有狀態
+- 測試無法獨立執行（依賴外部狀態）
+
 ### 測試檔案存在性
 
-每個程式碼檔案都應有對應的測試檔案：
+每個程式碼檔案都應有對應的測試檔案（依 `tech_stack` 調整）：
 
+**Go**:
 | 程式碼檔案 | 測試檔案 | 必要性 |
 | ---------- | -------- | ------ |
 | `service.go` | `service_test.go` | **必須** |
 | `handler.go` | `handler_test.go` | **必須** |
 | `repository.go` | `repository_test.go` | 建議 |
-| `utils.ts` | `utils.test.ts` | **必須** |
+
+**Python**:
+| 程式碼檔案 | 測試檔案 | 必要性 |
+| ---------- | -------- | ------ |
+| `service.py` | `test_service.py` | **必須** |
+| `routes.py` | `test_routes.py` | **必須** |
+| `repository.py` | `test_repository.py` | 建議 |
+
+**TypeScript/JavaScript**:
+| 程式碼檔案 | 測試檔案 | 必要性 |
+| ---------- | -------- | ------ |
+| `*.service.ts` | `*.service.test.ts` | **必須** |
 | `useXxx.ts` (hooks) | `useXxx.test.ts` | **必須** |
 | `Component.tsx` | `Component.test.tsx` | 建議 |
 
 ### 測試覆蓋率
 
-根據 project.yaml 設定的 `team.test_coverage` 檢查：
+根據 `team.test_coverage`（預設 80%）檢查：
 
 | 等級 | 覆蓋率 | 判定 |
 | ---- | ------ | ---- |
-| 達標 | ≥ 設定值 | PASS |
-| 接近 | 設定值 - 10% | WARNING |
-| 不足 | < 設定值 - 10% | FAIL |
+| 達標 | ≥ `{team.test_coverage}%` | PASS |
+| 接近 | `{team.test_coverage}%` - 10% | WARNING |
+| 不足 | < `{team.test_coverage}%` - 10% | FAIL |
+
+**覆蓋率檢查命令**（依語言）：
+
+```bash
+# Go
+cd {paths.backend} && go test -coverprofile=coverage.out ./...
+
+# Python
+cd {paths.backend} && pytest --cov --cov-report=term-missing
+
+# Node/TypeScript
+cd {paths.frontend} && {pm} test:coverage
+```
 
 ### E2E 測試檢查
 
@@ -91,19 +145,23 @@ E2E 測試必須覆蓋：
 
 | 類別 | 條件 |
 | ---- | ---- |
+| **TDD 違規** | 先寫實作再補測試（最嚴重） |
+| **TDD 違規** | 測試只有 happy path，缺少 edge cases |
 | **缺少測試** | service/handler 檔案無對應測試 |
-| **覆蓋率** | 覆蓋率 < (設定值 - 10%) |
+| **覆蓋率** | 覆蓋率 < (`{team.test_coverage}%` - 10%) |
 | **E2E** | 驗收條件未被 E2E 測試覆蓋 |
 | **執行失敗** | 測試執行失敗 |
+| **設計稿** | 有設計稿但未測試所有狀態 |
 
 ### WARNING 條件
 
 | 類別 | 條件 |
 | ---- | ---- |
-| **覆蓋率** | 覆蓋率在設定值 ±10% 範圍 |
+| **覆蓋率** | 覆蓋率在 `{team.test_coverage}%` ±10% 範圍 |
 | **品質** | 測試命名不清晰 |
 | **品質** | 測試缺少 assertion |
 | **重複** | 存在重複的測試邏輯 |
+| **獨立性** | 測試依賴執行順序 |
 
 ---
 
@@ -230,5 +288,13 @@ describe('UserService', () => {
 
 ## 相關文件
 
-- [project.yaml](../../schema/project-schema.yaml) - test_coverage 設定
-- [TICKETS.md](../../templates/TICKETS.md) - 驗收條件來源
+- 專案配置：`.claude/project.yaml` - `team.test_coverage` 設定
+- Tickets：`{paths.tickets}` - 驗收條件來源
+- 測試規範：`.claude/templates/test-requirements.md`
+- Precommit/CI 同步：`.claude/templates/precommit-ci-sync.md`
+- TDD 指令：`.claude/commands/tdd.md`
+
+---
+
+**類型**: 測試審查 Agent
+**依賴**: `project.yaml` 測試設定

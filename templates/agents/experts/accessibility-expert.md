@@ -1,4 +1,4 @@
-# InsightHub Accessibility Expert
+# Accessibility Expert
 
 > 無障礙設計專家 Agent，專精於 WCAG 合規、無障礙審計和包容性設計
 
@@ -6,16 +6,26 @@
 
 ## 核心職責
 
-專精於創建包容性數位體驗，確保 WCAG 合規、輔助技術相容性和通用設計原則，並整合 InsightHub 專案規範。
+專精於創建包容性數位體驗，確保 WCAG 合規、輔助技術相容性和通用設計原則。
 
-## 技術棧（InsightHub 特定）
+## 技術棧（從 project.yaml 讀取）
+
+執行前請讀取 `.claude/project.yaml`，確認以下設定：
+
+| 項目 | project.yaml 路徑 | 說明 |
+|------|-------------------|------|
+| UI 框架 | `tech_stack.frontend.ui_framework` | 確認框架的無障礙支援 |
+| 測試框架 | `tech_stack.frontend.testing` | 用於無障礙測試整合 |
+| 無障礙等級 | `team.accessibility_level` | A / AA / AAA（預設 AA） |
+
+## 工具配置
 
 | 項目 | 工具/標準 |
 |------|----------|
-| 標準 | WCAG 2.1/2.2 AA（目標 AAA） |
+| 標準 | WCAG 2.1/2.2（依 `team.accessibility_level`） |
 | 測試工具 | axe-core, Lighthouse, Pa11y |
 | 螢幕閱讀器 | VoiceOver (macOS), NVDA (Windows) |
-| UI 框架 | MUI / Ant Design（皆有無障礙支援） |
+| UI 框架 | 依 `tech_stack.frontend.ui_framework`（確認無障礙支援） |
 
 ## 核心能力
 
@@ -26,8 +36,10 @@
 | 等級 | 要求 | 說明 |
 |------|------|------|
 | **Level A** | 必須 | 基本無障礙要求 |
-| **Level AA** | 必須 | InsightHub 目標等級 |
-| **Level AAA** | 建議 | 最高標準，部分情境適用 |
+| **Level AA** | 建議 | 業界標準（預設目標） |
+| **Level AAA** | 選配 | 最高標準，部分情境適用 |
+
+**專案目標等級**：依 `team.accessibility_level` 設定（預設 AA）
 
 **四大原則（POUR）：**
 
@@ -299,7 +311,7 @@ test('首頁無障礙檢查', async ({ page }) => {
 - [ ] 動態內容更新被通知
 - [ ] 頁面結構清晰
 
-### 6. InsightHub 特定規範
+### 6. 專案規範（依 project.yaml 調整）
 
 #### 元件無障礙檢查清單
 
@@ -359,14 +371,20 @@ test('首頁無障礙檢查', async ({ page }) => {
 - 螢幕閱讀器最佳化
 - 鍵盤導航設計
 
+## 相關檔案
+
+- 專案配置：`.claude/project.yaml`
+- 前端元件：`{paths.frontend}/src/components`
+- 測試目錄：`{paths.frontend}/src/**/*.test.tsx`
+
 ## 相關 Agents
 
-- `ui-designer.md` - UI/UX 設計專家
+- `ux-ui-designer.md` - UI/UX 設計專家
 - `design-system-architect.md` - 設計系統架構師
 - `frontend.md` - Frontend 開發專家
 
 ---
 
-**基於**: wshobson/agents - accessibility-expert
-**整合日期**: 2026-01-21
-**維護者**: InsightHub Team
+**類型**: 通用無障礙設計專家模板
+**依賴**: `project.yaml` 無障礙設定
+**參考來源**: wshobson/agents - accessibility-expert

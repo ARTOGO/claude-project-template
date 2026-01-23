@@ -345,6 +345,9 @@ async function promptForConfig() {
     infrastructureConfig = await promptInfrastructureConfig()
   }
 
+  // Phase 6: Skills（額外能力）
+  const skillsConfig = await promptSkillsConfig()
+
   // 組合設定
   const { projectName } = await inquirer.prompt([
     {
@@ -367,7 +370,8 @@ async function promptForConfig() {
       infrastructure: infrastructureConfig
     },
     team: teamConfig,
-    design: designConfig
+    design: designConfig,
+    skills: skillsConfig
   }
 }
 
@@ -876,33 +880,91 @@ async function promptFromCustomDescription() {
 // 完整問答流程（原有流程的重構）
 // ============================================================
 async function promptFullConfig() {
-  // Phase 1: 專案類型
-  const { projectType } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'projectType',
-      message: '這是什麼類型的專案？',
-      choices: [
-        { name: 'Web App (前後端)', value: 'web-app' },
-        { name: '純前端應用', value: 'frontend-only' },
-        { name: '純後端服務', value: 'backend-only' },
-        { name: 'CLI 工具', value: 'cli' },
-        { name: 'Library / SDK', value: 'library' },
-        { name: 'Microservice', value: 'microservice' },
-        { name: 'Monorepo', value: 'monorepo' },
-        { name: '其他（自行輸入）', value: 'other' }
-      ]
-    }
-  ])
+  // Step C1: 收集需求概述
+  console.log(chalk.cyan('\n📝 全新專案規劃\n'))
 
-  let finalProjectType = projectType
-  if (projectType === 'other') {
-    const { customType } = await inquirer.prompt([{
-      type: 'input',
-      name: 'customType',
-      message: '請輸入專案類型：'
-    }])
-    finalProjectType = customType
+  const { projectDescription } = await inquirer.prompt([{
+    type: 'input',
+    name: 'projectDescription',
+    message: '請簡單描述您要建立的專案（1-3 句話）：',
+    validate: (input) => input.length > 0 || '請輸入專案描述'
+  }])
+
+  // Step C2: 根據描述提供架構建議
+  console.log(chalk.cyan('\n📐 架構建議\n'))
+  console.log('根據您的需求，以下是建議的架構選項：\n')
+
+  const { architectureChoice } = await inquirer.prompt([{
+    type: 'list',
+    name: 'architectureChoice',
+    message: '選擇架構模式：',
+    choices: [
+      {
+        name: 'A. 全端 Monolith（推薦入門）\n     Next.js Full-Stack，開發快、部署簡單，適合 MVP、小型團隊',
+        value: 'monolith'
+      },
+      {
+        name: 'B. 前後端分離（推薦中型專案）\n     前端 Next.js / 後端 Go + Gin，職責分明、可獨立擴展',
+        value: 'separated'
+      },
+      {
+        name: 'C. 微服務架構\n     多個獨立服務、API Gateway，高度解耦、獨立部署，適合大型團隊',
+        value: 'microservice'
+      },
+      {
+        name: 'D. 純後端 API\n     只有後端服務，無前端，適合 API 服務、行動 App 後端',
+        value: 'backend-only'
+      },
+      {
+        name: 'E. 其他（自行選擇專案類型）',
+        value: 'other'
+      }
+    ]
+  }])
+
+  // 根據架構選擇決定專案類型
+  let finalProjectType
+  switch (architectureChoice) {
+    case 'monolith':
+      finalProjectType = 'frontend-only' // Next.js 全端
+      break
+    case 'separated':
+      finalProjectType = 'web-app'
+      break
+    case 'microservice':
+      finalProjectType = 'microservice'
+      break
+    case 'backend-only':
+      finalProjectType = 'backend-only'
+      break
+    case 'other':
+    default:
+      // 回到傳統專案類型選擇
+      const { projectType } = await inquirer.prompt([{
+        type: 'list',
+        name: 'projectType',
+        message: '這是什麼類型的專案？',
+        choices: [
+          { name: 'Web App (前後端)', value: 'web-app' },
+          { name: '純前端應用', value: 'frontend-only' },
+          { name: '純後端服務', value: 'backend-only' },
+          { name: 'CLI 工具', value: 'cli' },
+          { name: 'Library / SDK', value: 'library' },
+          { name: 'Microservice', value: 'microservice' },
+          { name: 'Monorepo', value: 'monorepo' },
+          { name: '其他（自行輸入）', value: 'other' }
+        ]
+      }])
+      finalProjectType = projectType
+      if (projectType === 'other') {
+        const { customType } = await inquirer.prompt([{
+          type: 'input',
+          name: 'customType',
+          message: '請輸入專案類型：'
+        }])
+        finalProjectType = customType
+      }
+      break
   }
 
   // Phase 2: 技術棧
@@ -975,6 +1037,9 @@ async function promptFullConfig() {
     infrastructureConfig = await promptInfrastructureConfig()
   }
 
+  // Phase 6: Skills（額外能力）
+  const skillsConfig = await promptSkillsConfig()
+
   // 組合設定
   const { projectName } = await inquirer.prompt([
     {
@@ -997,7 +1062,8 @@ async function promptFullConfig() {
       infrastructure: infrastructureConfig
     },
     team: teamConfig,
-    design: designConfig
+    design: designConfig,
+    skills: skillsConfig
   }
 }
 
@@ -1425,23 +1491,77 @@ async function promptTeamConfig() {
   const { reviewAgents } = await inquirer.prompt([{
     type: 'checkbox',
     name: 'reviewAgents',
-    message: '啟用哪些 Review Agents？',
+    message: '啟用哪些核心 Review Agents？',
     choices: [
       { name: 'Security（強制）', value: 'security', checked: true, disabled: true },
-      { name: 'Test', value: 'test', checked: true },
-      { name: 'Quality', value: 'quality', checked: true },
-      { name: 'PM', value: 'pm', checked: true }
+      { name: 'Test - 測試覆蓋率檢查', value: 'test', checked: true },
+      { name: 'Quality - Clean Architecture、Lint', value: 'quality', checked: true },
+      { name: 'PM - 驗收條件檢查', value: 'pm', checked: true }
     ]
   }])
+
+  // 進階 Reviewers 詢問
+  const { enableAdvancedReviewers } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'enableAdvancedReviewers',
+    message: '是否啟用進階 Review Agents？',
+    default: false
+  }])
+
+  let advancedReviewAgents = []
+  if (enableAdvancedReviewers) {
+    const { advancedAgents } = await inquirer.prompt([{
+      type: 'checkbox',
+      name: 'advancedAgents',
+      message: '選擇進階 Review Agents：',
+      choices: [
+        { name: 'Architect - 架構設計審查、模組邊界', value: 'architect' },
+        { name: 'UI - UI/UX 一致性、設計規範遵循', value: 'ui' },
+        { name: 'PRD Alignment - PRD 對齊檢查、需求符合度', value: 'prd-alignment' },
+        { name: 'Estimator - 工時估算審查、複雜度評估', value: 'estimator' },
+        { name: 'Infra Validator - 基礎設施配置驗證', value: 'infra-validator' },
+        { name: 'Security Scanner - 自動化安全掃描、漏洞檢測', value: 'security-scanner' },
+        { name: 'Rollback - 回滾策略審查、部署安全', value: 'rollback' },
+        { name: 'Scope - 範圍蔓延檢測、變更控制', value: 'scope' }
+      ]
+    }])
+    advancedReviewAgents = advancedAgents
+  }
+
+  // E2E 測試框架詢問
+  let finalE2eFramework = 'playwright'
+  if (finalE2eRequired) {
+    const { e2eFramework } = await inquirer.prompt([{
+      type: 'list',
+      name: 'e2eFramework',
+      message: 'E2E 測試框架？',
+      choices: [
+        { name: 'Playwright（推薦）', value: 'playwright' },
+        { name: 'Cypress', value: 'cypress' },
+        { name: 'Puppeteer', value: 'puppeteer' },
+        { name: '其他（自行輸入）', value: 'other' }
+      ]
+    }])
+    if (e2eFramework === 'other') {
+      const { customE2eFramework } = await inquirer.prompt([{
+        type: 'input',
+        name: 'customE2eFramework',
+        message: '請輸入 E2E 測試框架：'
+      }])
+      finalE2eFramework = customE2eFramework
+    } else {
+      finalE2eFramework = e2eFramework
+    }
+  }
 
   return {
     test_coverage: finalTestCoverage,
     e2e_required: finalE2eRequired,
-    e2e_framework: 'playwright',
+    e2e_framework: finalE2eFramework,
     git_workflow: finalGitWorkflow,
     commit_convention: finalCommitConvention,
     review_required: true,
-    review_agents: ['security', ...reviewAgents.filter(a => a !== 'security')]
+    review_agents: ['security', ...reviewAgents.filter(a => a !== 'security'), ...advancedReviewAgents]
   }
 }
 
@@ -1460,6 +1580,32 @@ async function promptFeatureConfig(type) {
     default:
       return {}
   }
+}
+
+async function promptSkillsConfig() {
+  const { enableSkills } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'enableSkills',
+    message: '是否需要額外的 Skills（報表生成、文件協作等）？',
+    default: false
+  }])
+
+  if (!enableSkills) {
+    return { enabled: [] }
+  }
+
+  const { selectedSkills } = await inquirer.prompt([{
+    type: 'checkbox',
+    name: 'selectedSkills',
+    message: '選擇需要的 Skills：',
+    choices: [
+      { name: 'xlsx - Excel 報表處理', value: 'xlsx' },
+      { name: 'pdf - PDF 文件生成', value: 'pdf' },
+      { name: 'doc-coauthoring - 結構化文件協作', value: 'doc-coauthoring' }
+    ]
+  }])
+
+  return { enabled: selectedSkills }
 }
 
 function getDefaultConfig() {
@@ -1499,6 +1645,9 @@ function getDefaultConfig() {
     design: {
       enabled: true,
       figma: { enabled: false }
+    },
+    skills: {
+      enabled: []
     }
   }
 }
@@ -1630,12 +1779,23 @@ async function copyConditionalFiles(config, claudeDir) {
     }
   }
 
-  // 複製 skills（如果有前端，複製 webapp-testing）
+  // 複製 skills
+  // 如果有前端，複製 webapp-testing
   if (config.tech_stack?.frontend) {
     await copyDirIfExists(
       path.join(TEMPLATES_DIR, 'skills', 'webapp-testing'),
       path.join(claudeDir, 'skills', 'webapp-testing')
     )
+  }
+
+  // 複製使用者選擇的 skills（xlsx, pdf, doc-coauthoring）
+  if (config.skills?.enabled && config.skills.enabled.length > 0) {
+    for (const skill of config.skills.enabled) {
+      await copyDirIfExists(
+        path.join(TEMPLATES_DIR, 'skills', skill),
+        path.join(claudeDir, 'skills', skill)
+      )
+    }
   }
 
   // 複製 templates
@@ -1716,8 +1876,8 @@ function getFeatureAgents(type, registry) {
   const agents = []
 
   const featureMap = {
-    frontend: ['frontend', 'design'],
-    backend: ['backend'],
+    frontend: ['frontend', 'frontend-frameworks', 'design'],
+    backend: ['backend', 'backend-languages'],
     database: ['database'],
     infrastructure: ['infrastructure'],
     design: ['design']
