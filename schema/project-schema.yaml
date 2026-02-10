@@ -272,6 +272,14 @@ properties:
           enum: [security, test, quality, pm]
         default: [security, test, quality, pm]
 
+      collaboration_mode:
+        type: string
+        description: "多 Agent 協作模式"
+        enum: [subagent, agent-teams]
+        default: subagent
+        # subagent: 標準模式，主 Agent 協調子 Agent，結果彙整後回報（推薦）
+        # agent-teams: 實驗性功能，多個 Agent 獨立運作，可互相討論
+
   # ============================================================
   # 設計系統（可選）
   # ============================================================
@@ -402,6 +410,7 @@ examples:
       commit_convention: "conventional"
       review_required: true
       review_agents: ["security", "test", "quality", "pm"]
+      collaboration_mode: "subagent"
     design:
       enabled: true
       figma:

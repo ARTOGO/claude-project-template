@@ -11,6 +11,7 @@
 ## 執行前準備
 
 **讀取專案配置**：
+
 ```bash
 # 讀取 .claude/project.yaml 確認：
 # - paths.backend: 後端程式碼目錄
@@ -20,6 +21,8 @@
 # - tech_stack.frontend.package_manager: 前端套件管理器
 # - team.test_coverage: 測試覆蓋率要求
 # - team.linter.backend / team.linter.frontend: Linter 設定
+# - team.collaboration_mode: 協作模式 (subagent / agent-teams)
+# - team.review_agents: 啟用的 Review Agents
 ```
 
 ## 執行流程
@@ -85,7 +88,96 @@ git diff --stat
 
 ### 5. Multi-Agent Review
 
-啟動 Review Agents（依 `team.review_agents` 設定）：
+**根據 `team.collaboration_mode` 選擇執行方式**：
+
+---
+
+#### 模式 A: Subagent（預設）
+
+使用 Task tool 依序派任務給各 Reviewer，收集結果後整合：
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     Subagent Review 流程                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  主 Agent                                                        │
+│     │                                                            │
+│     ├─→ Task: Security Reviewer                                  │
+│     │      └─ 回傳安全檢查結果                                   │
+│     │                                                            │
+│     ├─→ Task: Test Reviewer                                      │
+│     │      └─ 回傳測試檢查結果                                   │
+│     │                                                            │
+│     ├─→ Task: Quality Reviewer                                   │
+│     │      └─ 回傳品質檢查結果                                   │
+│     │                                                            │
+│     └─→ Task: PM Reviewer（如啟用）                              │
+│            └─ 回傳驗收檢查結果                                   │
+│                                                                  │
+│  主 Agent 整合所有結果，產出報告                                  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**執行方式**：
+
+1. 依 `team.review_agents` 設定，依序使用 Task tool 呼叫各 Reviewer
+2. 每個 Reviewer 讀取對應的 agent 定義（如 `.claude/agents/reviewers/security.md`）
+3. 收集所有結果後，主 Agent 整合產出報告
+
+**Security FAIL → 立即停止後續審查**
+
+---
+
+#### 模式 B: Agent Teams（實驗性）
+
+建立 Agent Team，讓 Reviewers 協作審查，有爭議時互相討論：
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    Agent Teams Review 流程                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  建立 Agent Team，成員：                                         │
+│     • Security Reviewer                                          │
+│     • Test Reviewer                                              │
+│     • Quality Reviewer                                           │
+│     • PM Reviewer（如啟用）                                      │
+│                                                                  │
+│  團隊運作方式：                                                  │
+│     1. 各 Agent 獨立審查程式碼                                   │
+│     2. 發現問題時可互相討論                                      │
+│        例："這個 SQL 查詢有注入風險" → Test: "我會加測試驗證"    │
+│     3. 達成共識後產出報告                                        │
+│                                                                  │
+│  適用場景：                                                      │
+│     • 複雜的架構變更                                             │
+│     • 需要多方權衡的決策                                         │
+│     • 安全與效能的取捨討論                                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**執行方式**：
+
+1. 確認 `.claude/settings.json` 已啟用 Agent Teams：
+   ```json
+   {
+     "env": {
+       "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+     }
+   }
+   ```
+2. 建立 Agent Team，指定成員為 `team.review_agents` 中的 Reviewers
+3. 讓團隊協作審查，等待達成共識
+4. 收集團隊報告
+
+**Security FAIL → 團隊必須先解決安全問題才能繼續**
+
+---
+
+### 6. Review Agents 職責
 
 | Agent | 職責 |
 |-------|------|
@@ -94,25 +186,27 @@ git diff --stat
 | 📐 Quality | 架構規範、程式碼品質 |
 | 📋 PM | 驗收條件完成度 |
 
-**Security FAIL → 立即停止**
-
-### 6. 產出報告
+### 7. 產出報告
 
 ```
 # Development Complete Report
 
 ## Summary
+
 | 項目 | 結果 |
 |-----|------|
 | Status | PASS / FAIL |
 | Ticket | TICKET-XXX |
+| Collaboration Mode | subagent / agent-teams |
 
 ## Test Results
+
 - Backend: X passed, XX% coverage
 - Frontend Unit: X passed, XX% coverage
 - Frontend E2E: X passed
 
 ## Multi-Agent Review
+
 | Agent | 狀態 | 摘要 |
 |-------|------|------|
 | 🔒 Security | ✅/❌ | ... |
@@ -121,12 +215,15 @@ git diff --stat
 | 📋 PM | ✅/❌ | ... |
 
 ## Final Status
+
 ✅ PASS - Ready to commit
+
 或
+
 ❌ FAIL - 必須修復: [問題清單]
 ```
 
-### 7. 更新 TICKETS 檔案
+### 8. 更新 TICKETS 檔案
 
 **當 Review PASS 後，更新 `{paths.tickets}` 檔案：**
 
@@ -148,9 +245,21 @@ git diff --stat
 7. Quality Agent: 架構違規
 8. PM Agent: 驗收未完成
 
+## 協作模式選擇指南
+
+| 場景 | 建議模式 |
+|------|---------|
+| 一般功能開發 | Subagent |
+| Bug 修復 | Subagent |
+| 小型重構 | Subagent |
+| 複雜架構變更 | Agent Teams |
+| 安全敏感功能 | Agent Teams |
+| 效能優化（需權衡） | Agent Teams |
+
 ## 相關檔案
 
-- `.claude/project.yaml` - 專案配置（路徑、技術棧）
+- `.claude/project.yaml` - 專案配置（路徑、技術棧、協作模式）
+- `.claude/settings.json` - Claude Code 設定（Agent Teams 啟用）
 - `.claude/agents/reviewers/security.md`
 - `.claude/agents/reviewers/test.md`
 - `.claude/agents/reviewers/quality.md`
